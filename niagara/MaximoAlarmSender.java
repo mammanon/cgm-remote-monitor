@@ -173,7 +173,7 @@ void ensureSlots()
   ensure("httpTimeoutMs",   BInteger.make(5000));         // connect AND read timeout
 }
 
-void ensure(String name, BObject dflt)
+void ensure(String name, BValue dflt)
 {
   BComponent comp = getComponent();
   if (comp.get(name) == null) comp.add(name, dflt);
@@ -387,9 +387,9 @@ long nextTicketSeq()
 
 void mark(AlarmDbConnection conn, BAlarmRecord rec, String status, String sr, String error) throws Exception
 {
-  BFacets add = BFacets.make(
-      new String[]  { "maximoStatus", "maximoSr", "maximoError" },
-      new BObject[] { BString.make(status), BString.make(sr), BString.make(truncate(error, 300)) });
+  BFacets add = BFacets.make("maximoStatus", BString.make(status));
+  add = BFacets.make(add, BFacets.make("maximoSr", BString.make(sr)));
+  add = BFacets.make(add, BFacets.make("maximoError", BString.make(truncate(error, 300))));
   rec.setAlarmData(BFacets.make(rec.getAlarmData(), add));
   conn.update(rec);
 }
