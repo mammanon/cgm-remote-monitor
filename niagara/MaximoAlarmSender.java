@@ -5,10 +5,19 @@
  * classes and creates Maximo Service Requests (MXSR) through the KAFD
  * webMethods middleware (OAuth 2.0 client-credentials).
  *
+ * CONFIGURATION IS SLOT-BASED — no values are hard-coded here.
+ * On first start the Program adds its own config slots (middlewareUrl,
+ * tokenUrl, clientId, clientSecret, classstructureids, reporter
+ * defaults, limits) to itself with placeholder defaults. Commissioning
+ * engineers edit them on the Program's PROPERTY SHEET like any other
+ * component — no recompile is ever needed for a config change, and
+ * Dev / Production stations run identical code with different slot
+ * values.
+ *
  * Approval model ("accept / reject"):
  *   - ACCEPT  = operator ACKNOWLEDGES the alarm in the alarm console.
  *   - REJECT  = operator adds an alarm note containing "MAXIMO-SKIP".
- *   - CRITICAL alarms can bypass approval (AUTO_SEND_CRITICAL flag).
+ *   - CRITICAL alarms can bypass approval (autoSendCritical slot).
  *
  * Retry model:
  *   - 201  -> alarm is marked SENT with the returned SR ticketid.
@@ -19,13 +28,13 @@
  *             alarm database itself is the store-and-forward queue.
  *
  * This file is the source for a Niagara 4 Program object. Paste the
- * FIELDS + METHODS below into the Program editor (Edit tab), add the
- * imports on the Imports tab, and follow niagara/SETUP.md.
+ * content of EditTab-paste.txt into the Program editor (Edit tab), add
+ * the imports below on the Imports tab, and follow niagara/SETUP.md.
  *
  * SAFETY RULES (do not relax):
  *   - HTTP timeouts stay small (default 5 s). This code runs in the
  *     station JVM next to building control; it must never hang.
- *   - MAX_PER_CYCLE bounds work per execution.
+ *   - maxPerCycle bounds work per execution.
  *   - Every per-alarm failure is caught; one bad alarm never stops the
  *     cycle or the station.
  *
@@ -48,48 +57,11 @@
 // import java.util.regex.*;
 
 // ===========================================================================
-// CONFIG — EDIT THIS BLOCK ONLY (values from KAFD / middleware team)
+// STRUCTURAL CONSTANTS (rarely change — everything else is a slot)
 // ===========================================================================
 
-// Full MXSR endpoint through the middleware (final path from middleware team).
-// Direct-Maximo dev endpoint for early tests:
-//   https://masdev.manage.masdev.apps.ocpdev.kafd.sa/maximo/api/os/MXSR?lean=1
-static final String MIDDLEWARE_URL   = "https://<middleware-host>/<mxsr-path-from-middleware-team>";
-
-// OAuth 2.0 client credentials (from the KAFD developer portal).
-static final String TOKEN_URL        = "https://<middleware-host>/<oauth-token-endpoint>";
-static final String CLIENT_ID        = "<client-id>";
-static final String CLIENT_SECRET    = "<client-secret>";
-static final String OAUTH_SCOPE      = "";              // leave "" if not required
-
-// Alarm class filter and severity -> Maximo classification mapping.
-// Only sample value 1378 is confirmed; replace from the classifications
-// list / GET API once mapped with the CAFM team.
-static final String CLASS_MARKER     = "_MAXIMO_";      // matched inside alarm class name (upper-cased)
-static final String CLASSID_CRITICAL = "1378";
-static final String CLASSID_MAJOR    = "1378";
-static final String CLASSID_MINOR    = "1378";
-
-// Approval policy.
-static final boolean AUTO_SEND_CRITICAL = true;         // CRITICAL skips the ack gate
-static final String  REJECT_MARKER      = "MAXIMO-SKIP";// note text meaning "do not send"
-
-// Reporter defaults for the MXSR payload.
-static final String REPORTED_BY      = "BMS-USER";
-static final String REPORTED_EMAIL   = "cbms@glsan.co";
-static final String REPORT_PHONE     = "";
-static final String AFFECTED_PERSON  = "";
-static final String AFFECTED_EMAIL   = "";
-static final String AFFECTED_PHONE   = "";
-
-// Ticket id and time formatting.
-static final String TICKET_PREFIX    = "BMS-";
-static final String UTC_OFFSET       = "+03:00";        // KSA
-
-// Engine-safety limits.
-static final boolean ENABLED         = true;
-static final int MAX_PER_CYCLE       = 5;               // alarms sent per execute()
-static final int HTTP_TIMEOUT_MS     = 5000;            // connect AND read timeout
+static final String CLASS_MARKER  = "_MAXIMO_";     // matched inside alarm class name (upper-cased)
+static final String REJECT_MARKER = "MAXIMO-SKIP";  // alarm note text meaning "do not send"
 
 // ===========================================================================
 // FIELDS (transient state — survives between executions, not restarts)
@@ -107,8 +79,10 @@ String lastResult = "none";
 
 public void onStart() throws Exception
 {
-  log("started. endpoint=" + MIDDLEWARE_URL + " autoSendCritical=" + AUTO_SEND_CRITICAL
-      + " maxPerCycle=" + MAX_PER_CYCLE);
+  ensureSlots();   // creates any missing config slots with defaults
+  log("started. endpoint=" + cfg("middlewareUrl")
+      + " autoSendCritical=" + cfgB("autoSendCritical", true)
+      + " maxPerCycle=" + cfgI("maxPerCycle", 5));
 }
 
 public void onStop() throws Exception
@@ -119,17 +93,18 @@ public void onStop() throws Exception
 // Called by the linked interval trigger (every 10-30 s). One bounded scan.
 public void onExecute() throws Exception
 {
-  if (!ENABLED) return;
+  if (!cfgB("enabled", true)) return;
 
   BAlarmService service = (BAlarmService) Sys.getService(BAlarmService.TYPE);
   AlarmDbConnection conn = service.getAlarmDb().getDbConnection(null);
   try
   {
     int processed = 0;
+    int maxPerCycle = cfgI("maxPerCycle", 5);
     Cursor cursor = conn.getOpenAlarms();
     while (cursor.next())
     {
-      if (processed >= MAX_PER_CYCLE) break;
+      if (processed >= maxPerCycle) break;
       BAlarmRecord rec = (BAlarmRecord) cursor.get();
       try
       {
@@ -157,6 +132,69 @@ public void onExecute() throws Exception
   {
     conn.close();
   }
+}
+
+// ===========================================================================
+// CONFIG SLOTS — auto-created on first start, edited on the Property Sheet
+// ===========================================================================
+
+void ensureSlots()
+{
+  // Connection (values from KAFD / middleware team)
+  ensure("middlewareUrl",   BString.make("https://<middleware-host>/<mxsr-path-from-middleware-team>"));
+  ensure("tokenUrl",        BString.make("https://<middleware-host>/<oauth-token-endpoint>"));
+  ensure("clientId",        BString.make("<client-id>"));
+  ensure("clientSecret",    BString.make("<client-secret>"));
+  ensure("oauthScope",      BString.make(""));            // leave "" if not required
+
+  // Severity -> Maximo classification (replace once CAFM mapping is agreed)
+  ensure("classIdCritical", BString.make("1378"));
+  ensure("classIdMajor",    BString.make("1378"));
+  ensure("classIdMinor",    BString.make("1378"));
+
+  // Approval policy
+  ensure("autoSendCritical", BBoolean.make(true));        // CRITICAL skips the ack gate
+
+  // Reporter defaults for the MXSR payload
+  ensure("reportedBy",      BString.make("BMS-USER"));
+  ensure("reportedEmail",   BString.make("cbms@glsan.co"));
+  ensure("reportPhone",     BString.make(""));
+  ensure("affectedPerson",  BString.make(""));
+  ensure("affectedEmail",   BString.make(""));
+  ensure("affectedPhone",   BString.make(""));
+
+  // Ticket id and time formatting
+  ensure("ticketPrefix",    BString.make("BMS-"));
+  ensure("utcOffset",       BString.make("+03:00"));      // KSA
+
+  // Engine-safety limits
+  ensure("enabled",         BBoolean.make(true));
+  ensure("maxPerCycle",     BInteger.make(5));            // alarms sent per execute()
+  ensure("httpTimeoutMs",   BInteger.make(5000));         // connect AND read timeout
+}
+
+void ensure(String name, BObject dflt)
+{
+  BComponent comp = getComponent();
+  if (comp.get(name) == null) comp.add(name, dflt);
+}
+
+String cfg(String name)
+{
+  BObject o = getComponent().get(name);
+  return o == null ? "" : o.toString();
+}
+
+boolean cfgB(String name, boolean dflt)
+{
+  BObject o = getComponent().get(name);
+  return (o instanceof BBoolean) ? ((BBoolean) o).getBoolean() : dflt;
+}
+
+int cfgI(String name, int dflt)
+{
+  BObject o = getComponent().get(name);
+  return (o instanceof BNumber) ? ((BNumber) o).getInt() : dflt;
 }
 
 // ===========================================================================
@@ -191,7 +229,7 @@ boolean isRejected(BAlarmRecord rec)
 boolean isApproved(BAlarmRecord rec)
 {
   // Accept = acknowledged in the alarm console.
-  if (AUTO_SEND_CRITICAL && "CRITICAL".equals(severityOf(rec))) return true;
+  if (cfgB("autoSendCritical", true) && "CRITICAL".equals(severityOf(rec))) return true;
   return rec.getAckState().equals(BAckState.acked);
 }
 
@@ -219,7 +257,7 @@ void sendOne(AlarmDbConnection conn, BAlarmRecord rec) throws Exception
     return;
   }
 
-  String[] r = httpPost(MIDDLEWARE_URL, payload, "application/json", token);
+  String[] r = httpPost(cfg("middlewareUrl"), payload, "application/json", token);
   int code = Integer.parseInt(r[0]);
 
   // One retry on 401: token may have been revoked before its expiry.
@@ -227,7 +265,7 @@ void sendOne(AlarmDbConnection conn, BAlarmRecord rec) throws Exception
   {
     cachedToken = null;
     token = getToken();
-    r = httpPost(MIDDLEWARE_URL, payload, "application/json", token);
+    r = httpPost(cfg("middlewareUrl"), payload, "application/json", token);
     code = Integer.parseInt(r[0]);
   }
 
@@ -266,20 +304,20 @@ String buildPayload(BAlarmRecord rec, String severity)
   String msg = facet(rec, "msgText");
   if (msg.length() == 0) msg = "Point is in " + rec.getSourceState() + " state";
   String shortDesc = truncate(severity + " alarm: " + source, 100);
-  String ticketid = TICKET_PREFIX + nextTicketSeq();
+  String ticketid = cfg("ticketPrefix") + nextTicketSeq();
 
   StringBuffer b = new StringBuffer();
   b.append("{");
   jsonField(b, "ticketid", ticketid, true);
-  jsonField(b, "reportedby", REPORTED_BY, true);
+  jsonField(b, "reportedby", cfg("reportedBy"), true);
   jsonField(b, "reportdate", reportDate(rec.getTimestamp()), true);
-  jsonField(b, "reportedemail", REPORTED_EMAIL, true);
+  jsonField(b, "reportedemail", cfg("reportedEmail"), true);
   jsonField(b, "bmsassetcode", source, true);
   jsonField(b, "assetnum", "", true);                    // Maximo maps bmsassetcode internally
-  jsonField(b, "reportphone", REPORT_PHONE, true);
-  jsonField(b, "affectedperson", AFFECTED_PERSON, true);
-  jsonField(b, "affectedemail", AFFECTED_EMAIL, true);
-  jsonField(b, "affectedphone", AFFECTED_PHONE, true);
+  jsonField(b, "reportphone", cfg("reportPhone"), true);
+  jsonField(b, "affectedperson", cfg("affectedPerson"), true);
+  jsonField(b, "affectedemail", cfg("affectedEmail"), true);
+  jsonField(b, "affectedphone", cfg("affectedPhone"), true);
   jsonField(b, "description", shortDesc, true);
   jsonField(b, "classstructureid", classIdOf(severity), true);
   jsonField(b, "description_longdescription", msg, false);
@@ -308,15 +346,16 @@ String severityOf(BAlarmRecord rec)
 
 String classIdOf(String severity)
 {
-  if (severity.equals("CRITICAL")) return CLASSID_CRITICAL;
-  if (severity.equals("MAJOR"))    return CLASSID_MAJOR;
-  return CLASSID_MINOR;
+  if (severity.equals("CRITICAL")) return cfg("classIdCritical");
+  if (severity.equals("MAJOR"))    return cfg("classIdMajor");
+  return cfg("classIdMinor");
 }
 
 // "2026-07-14T10:30:00+03:00" — CBMS-formatted local time, NOT sysdate.
 String reportDate(BAbsTime t)
 {
-  Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT" + UTC_OFFSET));
+  String offset = cfg("utcOffset");
+  Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT" + offset));
   cal.setTimeInMillis(t.getMillis());
   return String.format("%04d-%02d-%02dT%02d:%02d:%02d%s",
       new Object[] {
@@ -326,7 +365,7 @@ String reportDate(BAbsTime t)
         new Integer(cal.get(Calendar.HOUR_OF_DAY)),
         new Integer(cal.get(Calendar.MINUTE)),
         new Integer(cal.get(Calendar.SECOND)),
-        UTC_OFFSET });
+        offset });
 }
 
 // Persistent ticket sequence, stored as a dynamic slot on this Program
@@ -371,11 +410,12 @@ String getToken() throws Exception
   if (cachedToken != null && now < tokenExpiryMs - 60000) return cachedToken;
 
   String form = "grant_type=client_credentials"
-      + "&client_id=" + URLEncoder.encode(CLIENT_ID, "UTF-8")
-      + "&client_secret=" + URLEncoder.encode(CLIENT_SECRET, "UTF-8");
-  if (OAUTH_SCOPE.length() > 0) form += "&scope=" + URLEncoder.encode(OAUTH_SCOPE, "UTF-8");
+      + "&client_id=" + URLEncoder.encode(cfg("clientId"), "UTF-8")
+      + "&client_secret=" + URLEncoder.encode(cfg("clientSecret"), "UTF-8");
+  String scope = cfg("oauthScope");
+  if (scope.length() > 0) form += "&scope=" + URLEncoder.encode(scope, "UTF-8");
 
-  String[] r = httpPost(TOKEN_URL, form, "application/x-www-form-urlencoded", null);
+  String[] r = httpPost(cfg("tokenUrl"), form, "application/x-www-form-urlencoded", null);
   if (!r[0].equals("200"))
     throw new Exception("token HTTP " + r[0] + ": " + truncate(r[1], 200));
 
@@ -398,9 +438,10 @@ String getToken() throws Exception
 
 String[] httpPost(String urlStr, String body, String contentType, String bearer) throws Exception
 {
+  int timeout = cfgI("httpTimeoutMs", 5000);
   HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
-  c.setConnectTimeout(HTTP_TIMEOUT_MS);
-  c.setReadTimeout(HTTP_TIMEOUT_MS);
+  c.setConnectTimeout(timeout);
+  c.setReadTimeout(timeout);
   c.setRequestMethod("POST");
   c.setDoOutput(true);
   c.setRequestProperty("Content-Type", contentType);

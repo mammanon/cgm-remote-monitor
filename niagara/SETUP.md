@@ -83,16 +83,47 @@ handshake error.
      `java.io.*`, `java.net.*`, `java.util.*`, `java.util.regex.*`).
    - **Edit tab** — paste everything from the `CONFIG` block down to the end
      of the file (fields + methods, without the comment header).
-4. **Edit the CONFIG block**: middleware URL, token URL, client id/secret,
-   classstructureid values, reporter defaults. Compile (save) — fix any
-   name the compiler flags (see §9).
-5. **Trigger**: from the `schedule` palette drag a **TriggerSchedule** next to
+4. **Save (compile)** — fix any name the compiler flags (see §9). No values
+   need editing in the code: all configuration is slot-based.
+5. **Start the Program once** (station running, Program started). On first
+   start it **creates its own config slots** with placeholder defaults.
+6. **Open the Program's Property Sheet** (right-click → Views → Property
+   Sheet) and fill in the slots — see the table in §4a. This is the only
+   place configuration is ever edited; changing a slot takes effect on the
+   next scan cycle, **no recompile needed**. Dev and Production stations run
+   identical code with different slot values.
+7. **Trigger**: from the `schedule` palette drag a **TriggerSchedule** next to
    the Program, set it to interval mode, **15 seconds**, and link its
    `fire` topic to the Program's `execute` action. (A kitControl interval
    timer linked to `execute` works equally well.)
-6. Ticket sequence: on first send the Program adds a `maximoTicketSeq` slot on
+8. Ticket sequence: on first send the Program adds a `maximoTicketSeq` slot on
    itself. To continue an existing sequence (e.g. last manual ticket was
-   BMS-187), pre-create the slot with value 187.
+   BMS-187), set the slot to 187 on the Property Sheet.
+
+## 4a. Configuration slots (Property Sheet reference)
+
+| Slot | Default | Meaning |
+|---|---|---|
+| `middlewareUrl` | placeholder | Full MXSR endpoint through the middleware (from middleware team) |
+| `tokenUrl` | placeholder | OAuth 2.0 token endpoint |
+| `clientId` / `clientSecret` | placeholder | OAuth client credentials from the KAFD developer portal |
+| `oauthScope` | `""` | OAuth scope, only if the middleware requires one |
+| `classIdCritical` / `classIdMajor` / `classIdMinor` | `1378` | Maximo `classstructureid` per severity (replace from CAFM list) |
+| `autoSendCritical` | `true` | CRITICAL alarms bypass the ack gate |
+| `reportedBy` | `BMS-USER` | MXSR reporter fields |
+| `reportedEmail` | `cbms@glsan.co` | |
+| `reportPhone`, `affectedPerson`, `affectedEmail`, `affectedPhone` | `""` | Optional MXSR reporter/customer fields |
+| `ticketPrefix` | `BMS-` | Application ticket id prefix |
+| `utcOffset` | `+03:00` | Offset used in `reportdate` |
+| `enabled` | `true` | Master on/off switch for the whole sender |
+| `maxPerCycle` | `5` | Max alarms sent per scan cycle (engine safety) |
+| `httpTimeoutMs` | `5000` | HTTP connect + read timeout (engine safety — keep small) |
+| `maximoTicketSeq` | created on first send | Last used ticket number (persisted) |
+
+**Protect the secret:** `clientSecret` is visible to anyone who can open the
+Property Sheet. Set the category/permissions on the `MaximoIntegration`
+folder so only admin users can view or edit it, and remember the value is
+stored in the station database — treat station backups accordingly.
 
 ## 5. Operator workflow (train this — it is the approval feature)
 
