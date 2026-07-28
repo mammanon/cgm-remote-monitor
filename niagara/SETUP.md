@@ -115,10 +115,21 @@ handshake error.
 | `reportPhone`, `affectedPerson`, `affectedEmail`, `affectedPhone` | `""` | Optional MXSR reporter/customer fields |
 | `ticketPrefix` | `BMS-` | Application ticket id prefix |
 | `utcOffset` | `+03:00` | Offset used in `reportdate` |
+| `statusUrl` | `""` (disabled) | SR status query URL; `{ticketid}` is replaced with the SR's ticket id. Empty = status polling off. **The real URL through the middleware must be confirmed with KAFD.** Mock example: `http://localhost:8099/maximo/api/os/MXSR?ticketid={ticketid}` |
+| `statusPollMinutes` | `5` | How often to refresh SR statuses |
 | `enabled` | `true` | Master on/off switch for the whole sender |
 | `maxPerCycle` | `5` | Max alarms sent per scan cycle (engine safety) |
 | `httpTimeoutMs` | `5000` | HTTP connect + read timeout (engine safety — keep small) |
 | `maximoTicketSeq` | created on first send | Last used ticket number (persisted) |
+
+**SR status polling:** when `statusUrl` is set, every `statusPollMinutes` the
+Program queries Maximo for each SENT alarm's SR and writes the result to the
+`maximoSrStatus` facet on the alarm record (visible in the alarm detail view)
+— operators see the ticket progress (NEW / INPRG / COMP...) next to the SR
+number. Polling for an alarm stops naturally once it is acked and returned
+to normal (it leaves the open-alarms list). Add to the KAFD question list:
+*"Please provide the middleware GET/query URL for reading an SR's status by
+ticketid."*
 
 **Protect the secret:** `clientSecret` is visible to anyone who can open the
 Property Sheet. Set the category/permissions on the `MaximoIntegration`

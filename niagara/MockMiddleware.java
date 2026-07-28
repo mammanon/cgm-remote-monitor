@@ -31,6 +31,7 @@ public class MockMiddleware
 {
   static final String TOKEN = "mock-token-12345";
   static final Set seenTickets = Collections.synchronizedSet(new HashSet());
+  static final Map pollCounts = Collections.synchronizedMap(new HashMap());
   static int srCounter = 0;
 
   public static void main(String[] args) throws Exception
@@ -96,6 +97,20 @@ public class MockMiddleware
       {
         handleMxsr(out, auth, body);
       }
+      else if (method.equals("GET") && path.startsWith("/maximo/api/os/MXSR"))
+      {
+        // status query: GET /maximo/api/os/MXSR?ticketid=BMS-n
+        String tid = null;
+        int q = path.indexOf("ticketid=");
+        if (q >= 0)
+        {
+          tid = path.substring(q + 9);
+          int amp = tid.indexOf('&');
+          if (amp >= 0) tid = tid.substring(0, amp);
+          tid = URLDecoder.decode(tid, "UTF-8");
+        }
+        handleStatus(out, auth, tid);
+      }
       else
       {
         respond(out, 404, "{\"error\":\"not found\"}");
@@ -147,6 +162,30 @@ public class MockMiddleware
       log("  -> 201 SR created: " + ticketid + " asset=" + asset + " (total " + srCounter + ")");
       respond(out, 201, "{\"ticketid\":\"" + ticketid + "\",\"status\":\"NEW\"}");
     }
+  }
+
+  // Returns a status that advances on every poll: NEW -> INPRG -> COMP,
+  // so the sender's status refresh can be watched progressing.
+  static void handleStatus(OutputStream out, String auth, String tid) throws Exception
+  {
+    if (auth == null || !auth.equals("Bearer " + TOKEN))
+    {
+      log("  -> 401 (bad/missing token on status query)");
+      respond(out, 401, "{\"Error\":{\"message\":\"invalid or expired token\"}}");
+      return;
+    }
+    if (tid == null || !seenTickets.contains(tid))
+    {
+      log("  -> 404 (status query for unknown ticketid " + tid + ")");
+      respond(out, 404, "{\"Error\":{\"message\":\"no SR found for ticketid " + tid + "\"}}");
+      return;
+    }
+    Integer n = (Integer) pollCounts.get(tid);
+    int count = n == null ? 0 : n.intValue();
+    pollCounts.put(tid, new Integer(count + 1));
+    String status = count == 0 ? "NEW" : count == 1 ? "INPRG" : "COMP";
+    log("  -> 200 status " + tid + " = " + status);
+    respond(out, 200, "{\"ticketid\":\"" + tid + "\",\"status\":\"" + status + "\"}");
   }
 
   static void respond(OutputStream out, int code, String json) throws Exception

@@ -13,6 +13,7 @@ String cachedToken = null;
 long   tokenExpiryMs = 0;
 long   sentCount = 0;
 long   failedCount = 0;
+long   lastStatusPollMs = 0;
 String lastResult = "none";
 
 // ===========================================================================
@@ -69,10 +70,74 @@ public void onExecute() throws Exception
         log("ERROR on alarm " + rec.getUuid() + ": " + perAlarm);
       }
     }
+
+    // Periodic SR status refresh — runs only when statusUrl is configured,
+    // at most once every statusPollMinutes.
+    if (cfg("statusUrl").length() > 0
+        && System.currentTimeMillis() - lastStatusPollMs > cfgI("statusPollMinutes", 5) * 60000L)
+    {
+      lastStatusPollMs = System.currentTimeMillis();
+      pollStatuses(conn);
+    }
   }
   finally
   {
     conn.close();
+  }
+}
+
+// Asks Maximo for the current status of each SENT alarm's SR and writes
+// it to the maximoSrStatus facet (visible in the alarm record). Polling
+// stops naturally once the alarm leaves the open-alarms list (acked and
+// returned to normal). Bounded by maxPerCycle per poll round.
+void pollStatuses(AlarmDbConnection conn)
+{
+  int polled = 0;
+  try
+  {
+    String token = getToken();
+    Cursor cursor = conn.getOpenAlarms();
+    while (cursor.next())
+    {
+      if (polled >= cfgI("maxPerCycle", 5)) break;
+      BAlarmRecord rec = (BAlarmRecord) cursor.get();
+      try
+      {
+        if (!"SENT".equals(facet(rec, "maximoStatus"))) continue;
+        String sr = facet(rec, "maximoSr");
+        if (sr.length() == 0) continue;
+        polled++;
+
+        String url = cfg("statusUrl").replace("{ticketid}", URLEncoder.encode(sr, "UTF-8"));
+        String[] r = httpGet(url, token);
+        if (!r[0].equals("200"))
+        {
+          log("status poll HTTP " + r[0] + " for " + sr);
+          continue;
+        }
+        String status = jsonString(r[1], "status");
+        if (status == null)
+        {
+          log("status poll: no status field in response for " + sr);
+          continue;
+        }
+        if (!status.equals(facet(rec, "maximoSrStatus")))
+        {
+          BFacets add = BFacets.make("maximoSrStatus", BString.make(status));
+          rec.setAlarmData(BFacets.make(rec.getAlarmData(), add));
+          conn.update(rec);
+          log("STATUS " + sr + " -> " + status);
+        }
+      }
+      catch (Exception per)
+      {
+        log("status poll error on alarm " + rec.getUuid() + ": " + per);
+      }
+    }
+  }
+  catch (Exception e)
+  {
+    log("status poll aborted: " + e.getMessage());
   }
 }
 
@@ -108,6 +173,14 @@ void ensureSlots()
   // Ticket id and time formatting
   ensure("ticketPrefix",    BString.make("BMS-"));
   ensure("utcOffset",       BString.make("+03:00"));      // KSA
+
+  // SR status polling. Leave statusUrl EMPTY to disable the feature.
+  // {ticketid} in the URL is replaced with the SR's ticket id. The real
+  // query URL through the middleware must be confirmed with KAFD.
+  // Direct-Maximo style example:
+  //   https://<host>/maximo/api/os/MXSR?lean=1&oslc.select=status&oslc.where=ticketid%3D%22{ticketid}%22
+  ensure("statusUrl",         BString.make(""));
+  ensure("statusPollMinutes", BInteger.make(5));
 
   // Engine-safety limits
   ensure("enabled",         BBoolean.make(true));
@@ -393,6 +466,23 @@ String[] httpPost(String urlStr, String body, String contentType, String bearer)
   byte[] bytes = body.getBytes("UTF-8");
   OutputStream os = c.getOutputStream();
   try { os.write(bytes); } finally { os.close(); }
+
+  int code = c.getResponseCode();
+  InputStream is = (code >= 400) ? c.getErrorStream() : c.getInputStream();
+  String resp = readAll(is);
+  c.disconnect();
+  return new String[] { String.valueOf(code), resp };
+}
+
+String[] httpGet(String urlStr, String bearer) throws Exception
+{
+  int timeout = cfgI("httpTimeoutMs", 5000);
+  HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
+  c.setConnectTimeout(timeout);
+  c.setReadTimeout(timeout);
+  c.setRequestMethod("GET");
+  c.setRequestProperty("Accept", "application/json");
+  if (bearer != null) c.setRequestProperty("Authorization", "Bearer " + bearer);
 
   int code = c.getResponseCode();
   InputStream is = (code >= 400) ? c.getErrorStream() : c.getInputStream();
