@@ -14,10 +14,17 @@
  * Dev / Production stations run identical code with different slot
  * values.
  *
- * Approval model ("accept / reject"):
- *   - ACCEPT  = operator ACKNOWLEDGES the alarm in the alarm console.
- *   - REJECT  = operator adds an alarm note containing "MAXIMO-SKIP".
- *   - CRITICAL alarms can bypass approval (autoSendCritical slot).
+ * Send model (operator OPT-IN):
+ *   - An alarm is sent to Maximo ONLY when the operator writes a console
+ *     note on it containing MAXIMO or MAXMO (any letter case).
+ *   - Alarms without the note are NEVER sent. Acknowledge has no Maximo
+ *     meaning. Per-severity autoSend* slots (default OFF) can bypass the
+ *     note requirement if ever enabled.
+ *
+ * Alarm classes accepted: P<parcel>_<SEVERITY> (e.g. P501_CRITICAL,
+ * P411_MAJOR). defaultAlarmClass, TEST and legacy unprefixed classes are
+ * ignored. The CBMS tag comes from the cbmsTag metadata facet on each
+ * alarm extension (Metadata: cbmsTag = %parent.parent.displayName%).
  *
  * Retry model:
  *   - 201  -> alarm is marked SENT with the returned SR ticketid.
@@ -60,8 +67,13 @@
 // STRUCTURAL CONSTANTS (rarely change — everything else is a slot)
 // ===========================================================================
 
-static final String CLASS_MARKER  = "_MAXIMO_";     // matched inside alarm class name (upper-cased)
-static final String REJECT_MARKER = "MAXIMO-SKIP";  // alarm note text meaning "do not send"
+// Operator send keywords: an alarm is sent ONLY when a console note
+// contains one of these words (any letter case; tolerates the common
+// misspelling MAXMO).
+static final String[] SEND_MARKERS = { "MAXIMO", "MAXMO" };
+
+// Accepted alarm classes: P<parcel>_<SEVERITY>, e.g. P501_CRITICAL.
+static final Pattern CLASS_PATTERN = Pattern.compile("^P[0-9]+_");
 
 // ===========================================================================
 // FIELDS (transient state — survives between executions, not restarts)
@@ -82,7 +94,9 @@ public void onStart() throws Exception
 {
   ensureSlots();   // creates any missing config slots with defaults
   log("started. endpoint=" + cfg("middlewareUrl")
-      + " autoSendCritical=" + cfgB("autoSendCritical", true)
+      + " autoSend C/M/m=" + cfgB("autoSendCritical", false)
+      + "/" + cfgB("autoSendMajor", false)
+      + "/" + cfgB("autoSendMinor", false)
       + " maxPerCycle=" + cfgI("maxPerCycle", 5));
 }
 
@@ -109,15 +123,10 @@ public void onExecute() throws Exception
       BAlarmRecord rec = (BAlarmRecord) cursor.get();
       try
       {
-        if (!isMaximoClass(rec))   continue;   // not ours
+        if (!isMaximoClass(rec))   continue;   // class not P<parcel>_<SEVERITY>
         if (!isInAlarm(rec))       continue;   // RTN / normal — never send
-        if (isHandled(rec))        continue;   // already SENT / FAILED / SKIPPED
-        if (isRejected(rec))                   // operator said no — mark once, stop rechecking
-        {
-          mark(conn, rec, "SKIPPED", "", "rejected by operator note " + REJECT_MARKER);
-          continue;
-        }
-        if (!isApproved(rec))      continue;   // waiting for operator ack (pending)
+        if (isHandled(rec))        continue;   // already SENT / FAILED
+        if (!isApproved(rec))      continue;   // no operator send-note yet
 
         processed++;
         sendOne(conn, rec);
@@ -217,8 +226,11 @@ void ensureSlots()
   ensure("classIdMajor",    BString.make("1378"));
   ensure("classIdMinor",    BString.make("1378"));
 
-  // Approval policy
-  ensure("autoSendCritical", BBoolean.make(true));        // CRITICAL skips the ack gate
+  // Auto-send bypass per severity — DEFAULT OFF: nothing is sent without
+  // an operator send-note unless explicitly enabled here.
+  ensure("autoSendCritical", BBoolean.make(false));
+  ensure("autoSendMajor",    BBoolean.make(false));
+  ensure("autoSendMinor",    BBoolean.make(false));
 
   // Reporter defaults for the MXSR payload
   ensure("reportedBy",      BString.make("BMS-USER"));
@@ -276,8 +288,11 @@ int cfgI(String name, int dflt)
 
 boolean isMaximoClass(BAlarmRecord rec)
 {
-  String cls = String.valueOf(rec.getAlarmClass());
-  return cls.toUpperCase().indexOf(CLASS_MARKER) >= 0;
+  // Accept only classes named P<parcel>_<SEVERITY> (P501_CRITICAL...).
+  // Excludes defaultAlarmClass, TEST, and legacy unprefixed classes.
+  String cls = String.valueOf(rec.getAlarmClass()).trim().toUpperCase();
+  if (!CLASS_PATTERN.matcher(cls).find()) return false;
+  return severityOf(rec) != null;
 }
 
 boolean isInAlarm(BAlarmRecord rec)
@@ -288,22 +303,30 @@ boolean isInAlarm(BAlarmRecord rec)
 
 boolean isHandled(BAlarmRecord rec)
 {
-  // Anything already marked (SENT / FAILED / SKIPPED) is finished.
+  // Anything already marked (SENT / FAILED) is finished.
   return facet(rec, "maximoStatus").length() > 0;
-}
-
-boolean isRejected(BAlarmRecord rec)
-{
-  // Operator reject = alarm note containing REJECT_MARKER. Notes live in
-  // alarm data; checking the whole facet string is version-tolerant.
-  return String.valueOf(rec.getAlarmData()).indexOf(REJECT_MARKER) >= 0;
 }
 
 boolean isApproved(BAlarmRecord rec)
 {
-  // Accept = acknowledged in the alarm console.
-  if (cfgB("autoSendCritical", true) && "CRITICAL".equals(severityOf(rec))) return true;
-  return rec.getAckState().equals(BAckState.acked);
+  // OPT-IN model: send only on an operator send-note, or when auto-send
+  // is explicitly enabled for this alarm's severity (default OFF).
+  String sev = severityOf(rec);
+  if ("CRITICAL".equals(sev) && cfgB("autoSendCritical", false)) return true;
+  if ("MAJOR".equals(sev)    && cfgB("autoSendMajor",    false)) return true;
+  if ("MINOR".equals(sev)    && cfgB("autoSendMinor",    false)) return true;
+  return hasSendNote(rec);
+}
+
+boolean hasSendNote(BAlarmRecord rec)
+{
+  // Console notes live in alarm data. The alarm is still unmarked at
+  // decision time (isHandled runs first), so scanning the whole
+  // alarm-data string is safe — our own maximo* facets don't exist yet.
+  String data = String.valueOf(rec.getAlarmData()).toUpperCase();
+  for (int i = 0; i < SEND_MARKERS.length; i++)
+    if (data.indexOf(SEND_MARKERS[i]) >= 0) return true;
+  return false;
 }
 
 // ===========================================================================
@@ -316,6 +339,13 @@ void sendOne(AlarmDbConnection conn, BAlarmRecord rec) throws Exception
   if (severity == null)
   {
     mark(conn, rec, "FAILED", "", "alarm class has no CRITICAL/MAJOR/MINOR suffix: " + rec.getAlarmClass());
+    return;
+  }
+
+  String source = sourceName(rec);
+  if (source.length() == 0)
+  {
+    mark(conn, rec, "FAILED", "", "no cbmsTag metadata on alarm extension — add cbmsTag=%parent.parent.displayName%");
     return;
   }
 
@@ -400,10 +430,13 @@ String buildPayload(BAlarmRecord rec, String severity)
 
 String sourceName(BAlarmRecord rec)
 {
-  // The alarm extension's Source Name BFormat (%parent.parent.displayName%)
-  // is resolved at alarm generation and stored in alarm data.
-  String s = facet(rec, "sourceName");
-  return s.length() > 0 ? s : String.valueOf(rec.getSource());
+  // The CBMS tag comes from the cbmsTag metadata facet on the alarm
+  // extension (Metadata: cbmsTag = %parent.parent.displayName%), resolved
+  // by the station at alarm time. The console Source Name stays untouched
+  // (P<parcel>_<tag>_<point>) — we deliberately do NOT parse it.
+  // Returns "" when missing; sendOne marks the alarm FAILED so a
+  // forgotten metadata entry is visible instead of silent.
+  return facet(rec, "cbmsTag").trim();
 }
 
 String severityOf(BAlarmRecord rec)

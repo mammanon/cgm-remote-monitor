@@ -7,17 +7,17 @@ webMethods middleware (OAuth 2.0).
 Source: [`MaximoAlarmSender.java`](MaximoAlarmSender.java)
 
 ```
-Point (Maximo_Alarms ext) ──► Alarm class Parcel501_Maximo_{CRITICAL|MAJOR|MINOR}
+Point (alarm ext + cbmsTag metadata) ──► Alarm class P<parcel>_{CRITICAL|MAJOR|MINOR}
                                         │
                                         ▼
                               Station Alarm Database
                                         │  scan every 10–30 s
                                         ▼
                       MaximoAlarmSender (Program object)
-                       │ pending  = unacked alarm (waits)
-                       │ ACCEPT   = operator acks the alarm
-                       │ REJECT   = note "MAXIMO-SKIP"
-                       │ CRITICAL = auto-send (configurable)
+                       │ DEFAULT       = nothing is sent
+                       │ SEND (opt-in) = operator writes a console note
+                       │                 containing MAXIMO (or MAXMO)
+                       │ autoSend*     = per-severity bypass, default OFF
                        ▼
         OAuth token ──► POST MXSR JSON ──► middleware ──► Maximo
                        │ 201  mark SENT + SR number in console
@@ -45,23 +45,25 @@ prepared while waiting.
 
 ## 2. Alarm classes and extensions (station side)
 
-1. Under `Config → Services → AlarmService`, create three alarm classes per
-   parcel, spelled **exactly**:
-   `Parcel501_Maximo_CRITICAL`, `Parcel501_Maximo_MAJOR`, `Parcel501_Maximo_MINOR`.
-   (The code matches `_Maximo_` anywhere in the class name and reads the last
-   `_` token as severity; it tolerates the historical `CRTICAL` typo, but fix
-   the spelling if you can.)
-2. On each integrated point, add the alarm extension (`Maximo_Alarms`),
-   configured as on the existing BacnetPoints alarms, with:
-   - **Alarm Class** = one of the three classes above
-   - **Source Name** = `%parent.parent.displayName%` *(only if the CBMS tag is
-     the name of the folder containing the point — see the check below)*
-3. **The one critical check:** raise a test alarm and open it in the alarm
-   console. The **Source** column must show the full CBMS tag exactly as in
-   the mapping sheet (e.g. `ZB_501_COMN_BF4_SERVCFAN18_HVAC_SEF01`),
-   character-for-character. If it shows a point name or "Points" instead, the
-   tag lives at a different level — use `%parent.displayName%` instead. Wrong
-   Source Name = `400 invalid asset` for every alarm later.
+1. Alarm classes follow the existing site convention `P<parcel>_<SEVERITY>`
+   (e.g. `P501_CRITICAL`, `P501_MAJOR`, `P501_MINOR`). The Program accepts
+   exactly this pattern; `defaultAlarmClass`, `TEST` and legacy unprefixed
+   `CRITICAL/MAJOR/MINOR` classes are ignored automatically.
+2. **Source Name stays exactly as configured today**
+   (`P<parcel>_%parent.parent.displayName%_%parent.displayName%`) — the
+   Program does not parse it. Instead, each alarm extension gets one
+   **Metadata facet**:
+   - Name: `cbmsTag`
+   - Value: `%parent.parent.displayName%`
+   The station resolves it at alarm time, so the alarm record carries the
+   pure CBMS tag (e.g. `ZB_411_OFCE_011_ADS_SEF05`) in its own field.
+3. Set the offnormal algorithm **timeDelay to at least 30 seconds** on every
+   integrated extension (site decision — debounce against alarm storms).
+   Steps 2+3 are one combined bulk edit (Batch Editor or prepared bog).
+4. **The one critical check:** raise a test alarm, open the alarm record,
+   and confirm the `cbmsTag` value equals the mapping-sheet tag
+   character-for-character. A missing/wrong `cbmsTag` = the alarm is marked
+   FAILED (never sent silently) or `400 invalid asset` at Maximo.
 
 ## 3. TLS trust store
 
@@ -109,7 +111,7 @@ handshake error.
 | `clientId` / `clientSecret` | placeholder | OAuth client credentials from the KAFD developer portal |
 | `oauthScope` | `""` | OAuth scope, only if the middleware requires one |
 | `classIdCritical` / `classIdMajor` / `classIdMinor` | `1378` | Maximo `classstructureid` per severity (replace from CAFM list) |
-| `autoSendCritical` | `true` | CRITICAL alarms bypass the ack gate |
+| `autoSendCritical` / `autoSendMajor` / `autoSendMinor` | `false` | Per-severity bypass of the send-note requirement. **Default OFF — nothing is sent without an operator note** |
 | `reportedBy` | `BMS-USER` | MXSR reporter fields |
 | `reportedEmail` | `cbms@glsan.co` | |
 | `reportPhone`, `affectedPerson`, `affectedEmail`, `affectedPhone` | `""` | Optional MXSR reporter/customer fields |
@@ -136,22 +138,24 @@ Property Sheet. Set the category/permissions on the `MaximoIntegration`
 folder so only admin users can view or edit it, and remember the value is
 stored in the station database — treat station backups accordingly.
 
-## 5. Operator workflow (train this — it is the approval feature)
+## 5. Operator workflow (train this — it is the send feature)
+
+**OPT-IN model: by default, NOTHING is sent to Maximo.**
 
 | Operator action in the alarm console | Effect |
 |---|---|
-| **Acknowledge** a `*_Maximo_*` alarm | **ACCEPT** — SR is created on the next scan |
-| Add a note containing **`MAXIMO-SKIP`** *before* acking | **REJECT** — never sent, marked SKIPPED |
-| Do nothing | Alarm stays **pending** — nothing is sent |
-| (CRITICAL class, if `AUTO_SEND_CRITICAL = true`) | Sent immediately, no ack needed |
+| Write a **note containing `MAXIMO`** (or `maximo` / `MAXMO` — any case) on the alarm | **SEND** — SR is created on the next scan (≤15 s) |
+| Do nothing / just acknowledge | **Nothing is sent, ever.** Ack has no Maximo meaning |
+| (Severity with its `autoSend*` slot = `true` — default is OFF) | Sent automatically, no note needed |
 
-After a send, the alarm record's data shows `maximoStatus` (`SENT` /
-`FAILED` / `DUPLICATE` / `SKIPPED`) and `maximoSr` (the SR reference) —
-visible in the alarm record's detail view.
+The note can include a reason: `MAXIMO fan tripped, needs mechanical team`.
+After a send, the alarm record shows `maximoStatus` (`SENT` / `FAILED` /
+`DUPLICATE`), `maximoSr` (the SR reference), and `maximoSrStatus` (the
+ticket's live status when polling is enabled).
 
-**Rule that must be signed off with operations:** for these three alarm
-classes, *Acknowledge now means "send to Maximo"*. Rejections must be noted
-**before** acknowledging.
+**Rule to train:** creating a Maximo ticket is always a deliberate act —
+write the MAXIMO note on the alarm. Acknowledge alarms exactly as before;
+acknowledging alone never creates a ticket.
 
 ## 6. Code signing
 
@@ -198,7 +202,8 @@ credentials exist. UAT cases with KAFD: 201 / 400 invalid tag / 400 duplicate
 | `connect timed out` every cycle | Firewall rule not applied / applied to old destination IP |
 | `400 invalid asset` | Source Name ≠ mapping-sheet tag (§2 check), or asset missing from the sheet |
 | `400 BMXAA4129E` marked DUPLICATE | Ticket id reused — check `maximoTicketSeq` wasn't reset |
-| Alarms never send | Not acked (pending), class name lacks `_Maximo_`, or `ENABLED=false` |
+| Alarms never send | No `MAXIMO` note written, class not `P<parcel>_<SEVERITY>`, or `enabled=false` |
+| Alarm marked FAILED "no cbmsTag metadata" | The extension is missing its `cbmsTag` metadata facet (bulk-edit gap) |
 | Two SRs for one alarm | A send timed out **after** Maximo created the SR, then retried with a new ticket id — raise `HTTP_TIMEOUT_MS` slightly and confirm middleware timeout behaviour with KAFD |
 
 ## 9. Known version-sensitive points (compiler will flag these)
