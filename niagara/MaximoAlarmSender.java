@@ -240,8 +240,14 @@ void ensureSlots()
   ensure("affectedEmail",   BString.make(""));
   ensure("affectedPhone",   BString.make(""));
 
-  // Ticket id and time formatting
-  ensure("ticketPrefix",    BString.make("BMS-"));
+  // Ticket id prefix — DROPDOWN on the Property Sheet: BMS (single
+  // sequence) or per-zone BMSZA / BMSZB / BMSZC. Select the entry
+  // matching this supervisor's zone.
+  ensure("ticketPrefixChoice", BDynamicEnum.make(0,
+      BEnumRange.make(new int[] { 0, 1, 2, 3 },
+                      new String[] { "BMS", "BMSZA", "BMSZB", "BMSZC" })));
+
+  // Time formatting
   ensure("utcOffset",       BString.make("+03:00"));      // KSA
 
   // SR status polling. Leave statusUrl EMPTY to disable the feature.
@@ -407,7 +413,7 @@ String buildPayload(BAlarmRecord rec, String severity)
   String msg = facet(rec, "msgText");
   if (msg.length() == 0) msg = "Point is in " + rec.getSourceState() + " state";
   String shortDesc = truncate(severity + " alarm: " + source, 100);
-  String ticketid = cfg("ticketPrefix") + nextTicketSeq();
+  String ticketid = ticketPrefix() + nextTicketSeq();
 
   StringBuffer b = new StringBuffer();
   b.append("{");
@@ -472,6 +478,17 @@ String reportDate(BAbsTime t)
         new Integer(cal.get(Calendar.MINUTE)),
         new Integer(cal.get(Calendar.SECOND)),
         offset });
+}
+
+// Ticket prefix from the dropdown slot ("BMS" -> "BMS-"). Falls back to
+// a legacy ticketPrefix string slot if one exists from an older install.
+String ticketPrefix()
+{
+  BObject o = getComponent().get("ticketPrefixChoice");
+  if (o instanceof BEnum) return ((BEnum) o).getTag() + "-";
+  String s = cfg("ticketPrefix");
+  if (s.length() == 0) s = "BMS-";
+  return s.endsWith("-") ? s : s + "-";
 }
 
 // Persistent ticket sequence, stored as a dynamic slot on this Program

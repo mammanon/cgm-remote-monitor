@@ -115,7 +115,7 @@ handshake error.
 | `reportedBy` | `BMS-USER` | MXSR reporter fields |
 | `reportedEmail` | `cbms@glsan.co` | |
 | `reportPhone`, `affectedPerson`, `affectedEmail`, `affectedPhone` | `""` | Optional MXSR reporter/customer fields |
-| `ticketPrefix` | `BMS-` | Application ticket id prefix |
+| `ticketPrefixChoice` | `BMS` (dropdown) | Ticket prefix: `BMS`, `BMSZA`, `BMSZB`, `BMSZC` — select per zone supervisor |
 | `utcOffset` | `+03:00` | Offset used in `reportdate` |
 | `statusUrl` | `""` (disabled) | SR status query URL; `{ticketid}` is replaced with the SR's ticket id. Empty = status polling off. **The real URL through the middleware must be confirmed with KAFD.** Mock example: `http://localhost:8099/maximo/api/os/MXSR?ticketid={ticketid}` |
 | `statusPollMinutes` | `5` | How often to refresh SR statuses |
