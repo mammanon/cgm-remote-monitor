@@ -33,15 +33,30 @@ public class MockMiddleware
   static final Set seenTickets = Collections.synchronizedSet(new HashSet());
   static final Map pollCounts = Collections.synchronizedMap(new HashMap());
   static int srCounter = 0;
+  static int reqCounter = 0;
+
+  // Payload fields printed one per line, in the agreed MXSR order.
+  static final String[] MXSR_FIELDS = {
+    "ticketid","reportedby","reportdate","reportedemail","bmsassetcode",
+    "assetnum","reportphone","affectedperson","affectedemail","affectedphone",
+    "description","classstructureid","description_longdescription" };
+
+  static final String LINE  = "==============================================================";
+  static final String THIN  = "--------------------------------------------------------------";
 
   public static void main(String[] args) throws Exception
   {
     int port = args.length > 0 ? Integer.parseInt(args[0]) : 8099;
     ServerSocket server = new ServerSocket(port);
-    log("Mock middleware listening on http://localhost:" + port);
-    log("  token endpoint : POST /oauth/token");
-    log("  MXSR endpoint  : POST /maximo/api/os/MXSR");
-    log("Press Ctrl+C to stop (sender will then retry = 'middleware down' test).");
+    System.out.println(LINE);
+    System.out.println("   KAFD  MAXIMO  MIDDLEWARE   --   TEST SIMULATOR  (GLSAN CBMS)");
+    System.out.println(LINE);
+    System.out.println("   Listening on http://localhost:" + port + "          " + now());
+    System.out.println("   OAuth 2.0 token endpoint : POST /oauth/token");
+    System.out.println("   Create SR (MXSR)         : POST /maximo/api/os/MXSR");
+    System.out.println("   SR status query          : GET  /maximo/api/os/MXSR?ticketid=...");
+    System.out.println(LINE);
+    System.out.println("   Waiting for Service Requests from CBMS ...");
     while (true)
     {
       final Socket sock = server.accept();
@@ -87,10 +102,10 @@ public class MockMiddleware
       }
       String body = new String(buf, 0, read);
 
-      log(method + " " + path + (body.length() > 0 ? "  body=" + truncate(body, 300) : ""));
-
       if (method.equals("POST") && path.startsWith("/oauth/token"))
       {
+        System.out.println();
+        System.out.println("  >> OAuth 2.0 token issued to CBMS  (" + now() + ")");
         respond(out, 200, "{\"access_token\":\"" + TOKEN + "\",\"token_type\":\"Bearer\",\"expires_in\":300}");
       }
       else if (method.equals("POST") && path.startsWith("/maximo/api/os/MXSR"))
@@ -126,9 +141,22 @@ public class MockMiddleware
 
   static void handleMxsr(OutputStream out, String auth, String body) throws Exception
   {
+    reqCounter++;
+    System.out.println();
+    System.out.println(LINE);
+    System.out.println("  [" + reqCounter + "] SERVICE REQUEST RECEIVED FROM CBMS        " + now());
+    System.out.println(THIN);
+    for (int i = 0; i < MXSR_FIELDS.length; i++)
+    {
+      String v = jsonValue(body, MXSR_FIELDS[i]);
+      System.out.println("    " + pad(MXSR_FIELDS[i], 28) + ": " + (v == null ? "" : v));
+    }
+    System.out.println(THIN);
+
     if (auth == null || !auth.equals("Bearer " + TOKEN))
     {
-      log("  -> 401 (bad/missing token: " + auth + ")");
+      System.out.println("    RESULT :  401 UNAUTHORIZED - invalid or expired token");
+      System.out.println(LINE);
       respond(out, 401, "{\"Error\":{\"message\":\"invalid or expired token\"}}");
       return;
     }
@@ -138,30 +166,44 @@ public class MockMiddleware
 
     if (asset == null || asset.length() == 0)
     {
-      log("  -> 400 (missing bmsassetcode)");
+      System.out.println("    RESULT :  400 REJECTED - required field bmsassetcode missing");
       respond(out, 400, "{\"Error\":{\"message\":\"BMXAA4195E - required field bmsassetcode\"}}");
     }
     else if (asset.indexOf("BADASSET") >= 0)
     {
-      log("  -> 400 (invalid asset trigger)");
+      System.out.println("    RESULT :  400 REJECTED - no Maximo asset mapping for this CBMS tag");
       respond(out, 400, "{\"Error\":{\"message\":\"Invalid asset - no mapping for " + asset + "\"}}");
     }
     else if (asset.indexOf("FAIL500") >= 0)
     {
-      log("  -> 500 (server error trigger — sender should retry)");
+      System.out.println("    RESULT :  500 SERVER ERROR - CBMS will retry automatically");
       respond(out, 500, "{\"Error\":{\"message\":\"internal server error\"}}");
     }
     else if (ticketid != null && !seenTickets.add(ticketid))
     {
-      log("  -> 400 (duplicate ticketid " + ticketid + ")");
+      System.out.println("    RESULT :  400 DUPLICATE (BMXAA4129E) - ticket " + ticketid + " already exists");
       respond(out, 400, "{\"Error\":{\"message\":\"BMXAA4129E - record already exists for ticketid " + ticketid + "\"}}");
     }
     else
     {
       srCounter++;
-      log("  -> 201 SR created: " + ticketid + " asset=" + asset + " (total " + srCounter + ")");
+      System.out.println("    RESULT :  201 CREATED  ->  Service Request " + ticketid
+          + "   (total created: " + srCounter + ")");
       respond(out, 201, "{\"ticketid\":\"" + ticketid + "\",\"status\":\"NEW\"}");
     }
+    System.out.println(LINE);
+  }
+
+  static String pad(String s, int w)
+  {
+    StringBuffer b = new StringBuffer(s);
+    while (b.length() < w) b.append(' ');
+    return b.toString();
+  }
+
+  static String now()
+  {
+    return new java.text.SimpleDateFormat("HH:mm:ss  dd-MMM-yyyy").format(new Date());
   }
 
   // Returns a status that advances on every poll: NEW -> INPRG -> COMP,
@@ -184,7 +226,8 @@ public class MockMiddleware
     int count = n == null ? 0 : n.intValue();
     pollCounts.put(tid, new Integer(count + 1));
     String status = count == 0 ? "NEW" : count == 1 ? "INPRG" : "COMP";
-    log("  -> 200 status " + tid + " = " + status);
+    System.out.println();
+    System.out.println("  >> STATUS QUERY  " + tid + "  ->  " + status + "   (" + now() + ")");
     respond(out, 200, "{\"ticketid\":\"" + tid + "\",\"status\":\"" + status + "\"}");
   }
 
