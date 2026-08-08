@@ -38,7 +38,17 @@ function create (env, ctx) {
 
   // define static server
   //TODO: JC - changed cache to 1 hour from 30d ays to bypass cache hell until we have a real solution
-  var staticFiles = express.static(env.static_files, {maxAge: 60 * 60 * 1000});
+  var staticFiles = express.static(env.static_files, {
+    maxAge: 60 * 60 * 1000
+    //TODO: JC - changed cache to 1 hour from 30 days to bypass cache hell until we have a real solution
+    // Pages themselves must not be cached: a phone that saved the page to its
+    // home screen would keep showing an old version of the app after an update.
+    , setHeaders: function noCacheForPages (res, filePath) {
+      if (/\.html$/.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      }
+    }
+  });
 
   // serve the static content
   app.use(staticFiles);
