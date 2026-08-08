@@ -71,13 +71,15 @@
     border-radius: 10px; padding: 0 14px; font-size: 15px; font-weight: 600; cursor: pointer; min-height: 46px;
   }
   .photo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  #photoPreviewWrap { position: relative; display: none; }
-  #photoPreview { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid #d1d5db; }
-  #removePhotoBtn {
+  #photoStrip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+  .pthumb { position: relative; }
+  .pthumb img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid #d1d5db; display: block; }
+  .pthumb button {
     position: absolute; top: -8px; inset-inline-end: -8px;
     width: 26px; height: 26px; border-radius: 50%; border: 0;
     background: #dc2626; color: #fff; font-size: 15px; line-height: 1; cursor: pointer;
   }
+  .thumbs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .formbtns { display: flex; gap: 10px; margin-top: 16px; }
   .savebtn {
     flex: 1; border: 0; background: #0d9488; color: #fff; font-size: 17px; font-weight: 700;
@@ -285,12 +287,9 @@
         <label id="l_photo">Meal photo</label>
         <div class="photo-row">
           <button type="button" class="minibtn" id="photoBtn">📷 <span id="photoBtnText">Add photo</span></button>
-          <input type="file" id="photoInput" accept="image/*" style="display:none">
-          <div id="photoPreviewWrap">
-            <img id="photoPreview" alt="">
-            <button type="button" id="removePhotoBtn" aria-label="remove">✕</button>
-          </div>
+          <input type="file" id="photoInput" accept="image/*" multiple style="display:none">
         </div>
+        <div id="photoStrip"></div>
       </div>
 
       <div class="formbtns">
@@ -396,9 +395,9 @@
       , insulin: 'Insulin dose (units)'
       , notes: 'Notes'
       , optional: '(optional)'
-      , photo: 'Meal photo'
+      , photo: 'Meal photos'
       , addPhoto: 'Add photo'
-      , changePhoto: 'Change photo'
+      , morePhotos: 'Add another photo'
       , save: 'Save'
       , cancel: 'Cancel'
       , hTime: 'Time', hBefore: 'Before', hAfter: 'After', hCarbs: 'Carbs', hFactor: 'Factor', hInsulin: 'Insulin', hPhoto: 'Photo', hNotes: 'Notes'
@@ -422,7 +421,7 @@
       , saveError: 'Could not save — check the connection and try again.'
       , loadError: 'Could not load data from the server.'
       , setupWarn: 'Server setup is not finished: the site owner must set API_SECRET and add "careportal" to ENABLE, otherwise meals cannot be saved.'
-      , photoError: 'Could not read this photo.'
+      , photoError: 'Could not read one of the photos.'
       , ok: 'OK'
       , foodBtn: 'Calculate carbs from foods'
       , chooseFoods: 'Choose foods'
@@ -453,9 +452,9 @@
       , insulin: 'جرعة الإنسولين (وحدة)'
       , notes: 'ملاحظات'
       , optional: '(اختياري)'
-      , photo: 'صورة الوجبة'
+      , photo: 'صور الوجبة'
       , addPhoto: 'إضافة صورة'
-      , changePhoto: 'تغيير الصورة'
+      , morePhotos: 'إضافة صورة أخرى'
       , save: 'حفظ'
       , cancel: 'إلغاء'
       , hTime: 'الوقت', hBefore: 'قبل', hAfter: 'بعد', hCarbs: 'كارب', hFactor: 'المعامل', hInsulin: 'إنسولين', hPhoto: 'صورة', hNotes: 'ملاحظات'
@@ -479,7 +478,7 @@
       , saveError: 'تعذر الحفظ — تحقق من الاتصال وحاول مرة أخرى.'
       , loadError: 'تعذر تحميل البيانات من الخادم.'
       , setupWarn: 'إعداد الخادم غير مكتمل: يجب على مالك الموقع تعيين API_SECRET وإضافة "careportal" إلى ENABLE حتى يمكن حفظ الوجبات.'
-      , photoError: 'تعذر قراءة هذه الصورة.'
+      , photoError: 'تعذر قراءة إحدى الصور.'
       , ok: 'حسنًا'
       , foodBtn: 'احسبي الكارب من الأطعمة'
       , chooseFoods: 'اختاري الأطعمة'
@@ -518,8 +517,7 @@
     , authenticated: false
     , editingId: null
     , editingDoc: null
-    , photoDataUrl: null      // newly chosen photo (compressed data URL)
-    , photoRemoved: false
+    , photos: { kept: [], added: [] }   // ids already on the server, and new photos waiting to upload
     , busy: false
   };
 
@@ -680,6 +678,16 @@
       if (!j || !j._id) { throw new Error('upload failed'); }
       return String(j._id);
     });
+  }
+
+  function docImageIds (doc) {
+    if (!doc) { return []; }
+    if (Array.isArray(doc.mealImageIds)) { return doc.mealImageIds.slice(); }
+    return doc.mealImageId ? [doc.mealImageId] : [];
+  }
+
+  function photoUrl (id) {
+    return '/api/v1/mealimages/' + encodeURIComponent(id);
   }
 
   function deletePhoto (id) {
@@ -1017,7 +1025,8 @@
     $('l_optional2').textContent = t('optional');
     $('l_notes').textContent = t('notes');
     $('l_photo').textContent = t('photo');
-    $('photoBtnText').textContent = (state.photoDataUrl || (state.editingDoc && state.editingDoc.mealImageId && !state.photoRemoved)) ? t('changePhoto') : t('addPhoto');
+    $('photoBtnText').textContent = (state.photos.kept.length + state.photos.added.length) ? t('morePhotos') : t('addPhoto');
+    renderPhotoStrip();
     $('saveBtn').textContent = t('save');
     $('cancelBtn').textContent = t('cancel');
     $('h_time').textContent = t('hTime');
@@ -1062,6 +1071,20 @@
     , { days: 90, key: 'threeMonths' }
     , { days: 0, key: 'all' }
   ];
+
+  // A meal can be entered with an older date; widen the shown period so the
+  // patient still sees the meal she just saved.
+  function ensureRangeIncludes (when) {
+    if (!state.rangeDays || !when || isNaN(when)) { return; }
+    var ageDays = (Date.now() - when.getTime()) / 86400000;
+    if (ageDays <= state.rangeDays) { return; }
+    var wider = 0;
+    RANGES.forEach(function (r) {
+      if (!wider && r.days && ageDays <= r.days) { wider = r.days; }
+    });
+    state.rangeDays = wider;   // 0 means "All"
+    renderChips();
+  }
 
   function renderChips () {
     var wrap = $('chips');
@@ -1120,8 +1143,11 @@
       } else {
         afterHtml = bgCell(e.bgAfter);
       }
-      var photoHtml = e.mealImageId
-        ? '<img class="thumb" loading="lazy" alt="" data-act="photo" data-src="/api/v1/mealimages/' + esc(e.mealImageId) + '" src="/api/v1/mealimages/' + esc(e.mealImageId) + '">'
+      var imageIds = docImageIds(e);
+      var photoHtml = imageIds.length
+        ? '<span class="thumbs">' + imageIds.map(function (id) {
+          return '<img class="thumb" loading="lazy" alt="" data-act="photo" data-src="' + esc(photoUrl(id)) + '" src="' + esc(photoUrl(id)) + '">';
+        }).join('') + '</span>'
         : '';
       var actions = state.authenticated
         ? '<button type="button" class="rowbtn" data-act="edit" data-id="' + esc(e._id) + '" aria-label="edit">✎</button>'
@@ -1136,7 +1162,7 @@
           + (itemsSummary(e) ? '<small class="carbdetail">' + esc(itemsSummary(e)) + '</small>' : '') + '</span></td>'
         + '<td data-label="' + esc(t('hFactor')) + '"' + (num(e.carbFactor) === null ? ' class="hideempty"' : '') + '><b>' + (num(e.carbFactor) === null ? '—' : esc(num(e.carbFactor))) + '</b></td>'
         + '<td data-label="' + esc(t('hInsulin')) + '"' + (num(e.insulin) === null ? ' class="hideempty"' : '') + '>' + (num(e.insulin) === null ? '—' : esc(num(e.insulin)) + ' U') + '</td>'
-        + '<td data-label="' + esc(t('hPhoto')) + '"' + (e.mealImageId ? '' : ' class="hideempty"') + '>' + photoHtml + '</td>'
+        + '<td data-label="' + esc(t('hPhoto')) + '"' + (imageIds.length ? '' : ' class="hideempty"') + '>' + photoHtml + '</td>'
         + '<td data-label="' + esc(t('hNotes')) + '" class="notecell' + (e.notes ? '' : ' hideempty') + '">' + esc(e.notes || '') + '</td>'
         + '<td class="actioncell">' + actions + '</td>';
       tbody.appendChild(tr);
@@ -1145,11 +1171,24 @@
 
   /* ---------------- form ---------------- */
   function resetPhotoState () {
-    state.photoDataUrl = null;
-    state.photoRemoved = false;
+    state.photos = { kept: [], added: [] };
     $('photoInput').value = '';
-    $('photoPreviewWrap').style.display = 'none';
-    $('photoPreview').src = '';
+    renderPhotoStrip();
+  }
+
+  function renderPhotoStrip () {
+    var strip = $('photoStrip');
+    var kept = state.photos.kept.map(function (id) {
+      return { src: photoUrl(id), kind: 'kept', ref: id };
+    });
+    var added = state.photos.added.map(function (dataUrl, index) {
+      return { src: dataUrl, kind: 'added', ref: String(index) };
+    });
+    strip.innerHTML = kept.concat(added).map(function (p) {
+      return '<span class="pthumb"><img alt="" src="' + esc(p.src) + '">'
+        + '<button type="button" data-pdrop="' + esc(p.kind) + '" data-ref="' + esc(p.ref) + '" aria-label="remove photo">✕</button></span>';
+    }).join('');
+    $('photoBtnText').textContent = (kept.length + added.length) ? t('morePhotos') : t('addPhoto');
   }
 
   function openForm (doc, focusAfter) {
@@ -1167,13 +1206,10 @@
     $('insulin').value = doc && num(doc.insulin) !== null ? num(doc.insulin) : '';
     $('notes').value = doc && doc.notes ? doc.notes : '';
 
-    if (doc && doc.mealImageId) {
-      $('photoPreview').src = '/api/v1/mealimages/' + encodeURIComponent(doc.mealImageId);
-      $('photoPreviewWrap').style.display = 'block';
-    }
+    state.photos.kept = docImageIds(doc);
+    renderPhotoStrip();
 
     $('formTitle').textContent = doc ? t('editMeal') : t('addMeal');
-    $('photoBtnText').textContent = (doc && doc.mealImageId) ? t('changePhoto') : t('addPhoto');
     $('formCard').style.display = 'block';
     $('addMealBtn').style.display = 'none';
     $('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1223,7 +1259,7 @@
     });
   }
 
-  function buildDoc (imageId) {
+  function buildDoc (imageIds) {
     var when = new Date($('mealTime').value);
     if (isNaN(when)) { when = new Date(); }
 
@@ -1250,7 +1286,8 @@
       delete doc.glucoseType;
       delete doc.units;
     }
-    setOrDelete('mealImageId', imageId || null);
+    delete doc.mealImageId;   // meals used to hold a single photo
+    setOrDelete('mealImageIds', imageIds && imageIds.length ? imageIds : null);
     return doc;
   }
 
@@ -1261,15 +1298,15 @@
     $('saveBtn').disabled = true;
     toast(t('saving'), 15000);
 
-    var oldImageId = state.editingDoc && state.editingDoc.mealImageId;
-    var keepOld = oldImageId && !state.photoRemoved && !state.photoDataUrl;
+    var oldIds = docImageIds(state.editingDoc);
 
-    var photoStep = state.photoDataUrl
-      ? uploadPhoto(state.photoDataUrl)
-      : Promise.resolve(keepOld ? oldImageId : null);
+    var photoStep = Promise.all(state.photos.added.map(function (dataUrl) {
+      return uploadPhoto(dataUrl);
+    }));
 
-    photoStep.then(function (imageId) {
-      var doc = buildDoc(imageId);
+    photoStep.then(function (uploadedIds) {
+      var imageIds = state.photos.kept.concat(uploadedIds);
+      var doc = buildDoc(imageIds);
       var isEdit = !!state.editingId;
       if (isEdit) { doc._id = state.editingId; }
       return fetch('/api/v1/treatments/', {
@@ -1278,11 +1315,15 @@
         , body: JSON.stringify(doc)
       }).then(function (r) {
         if (!r.ok) { throw new Error('save failed ' + r.status); }
-        // clean up a replaced or removed photo
-        if (oldImageId && oldImageId !== imageId) { deletePhoto(oldImageId); }
+        // clean up photos the patient removed from this meal
+        oldIds.forEach(function (id) {
+          if (imageIds.indexOf(id) < 0) { deletePhoto(id); }
+        });
+        return doc;
       });
-    }).then(function () {
+    }).then(function (doc) {
       toast(t('saved'));
+      ensureRangeIncludes(new Date(doc.eventTime));
       closeForm();
       loadEntries();
     }).catch(function () {
@@ -1301,7 +1342,7 @@
       method: 'DELETE', headers: authHeaders()
     }).then(function (r) {
       if (!r.ok) { throw new Error('delete failed'); }
-      if (entry && entry.mealImageId) { deletePhoto(entry.mealImageId); }
+      docImageIds(entry).forEach(deletePhoto);
       toast(t('deleted'));
       loadEntries();
     }).catch(function () {
@@ -1332,7 +1373,7 @@
         , num(e.carbFactor) === null ? '' : num(e.carbFactor)
         , num(e.insulin) === null ? '' : num(e.insulin)
         , e.notes || ''
-        , e.mealImageId ? (location.origin + '/api/v1/mealimages/' + e.mealImageId) : ''
+        , docImageIds(e).map(function (id) { return location.origin + photoUrl(id); }).join(' | ')
       ]);
     });
     var csv = '\uFEFF' + rows.map(function (r) { return r.map(csvEscape).join(','); }).join('\r\n');
@@ -1422,26 +1463,31 @@
 
   $('photoBtn').onclick = function () { $('photoInput').click(); };
   $('photoInput').addEventListener('change', function () {
-    var file = this.files && this.files[0];
-    if (!file) { return; }
-    compressPhoto(file).then(function (dataUrl) {
-      state.photoDataUrl = dataUrl;
-      state.photoRemoved = false;
-      $('photoPreview').src = dataUrl;
-      $('photoPreviewWrap').style.display = 'block';
-      $('photoBtnText').textContent = t('changePhoto');
-    }).catch(function () {
-      toast(t('photoError'), 4000);
+    var files = Array.prototype.slice.call(this.files || []);
+    this.value = '';
+    if (!files.length) { return; }
+    var failed = 0;
+    Promise.all(files.map(function (file) {
+      return compressPhoto(file).catch(function () { failed++; return null; });
+    })).then(function (dataUrls) {
+      dataUrls.forEach(function (dataUrl) {
+        if (dataUrl) { state.photos.added.push(dataUrl); }
+      });
+      renderPhotoStrip();
+      if (failed) { toast(t('photoError'), 4000); }
     });
   });
-  $('removePhotoBtn').onclick = function () {
-    state.photoRemoved = true;
-    state.photoDataUrl = null;
-    $('photoInput').value = '';
-    $('photoPreviewWrap').style.display = 'none';
-    $('photoPreview').src = '';
-    $('photoBtnText').textContent = t('addPhoto');
-  };
+  $('photoStrip').addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-pdrop]');
+    if (!el) { return; }
+    var ref = el.getAttribute('data-ref');
+    if (el.getAttribute('data-pdrop') === 'kept') {
+      state.photos.kept = state.photos.kept.filter(function (id) { return id !== ref; });
+    } else {
+      state.photos.added.splice(Number(ref), 1);
+    }
+    renderPhotoStrip();
+  });
 
   $('mealRows').addEventListener('click', function (ev) {
     var el = ev.target.closest('[data-act]');
