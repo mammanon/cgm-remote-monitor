@@ -142,6 +142,54 @@
     .notecell { max-width: none; text-align: end; }
     #listcard { background: transparent; box-shadow: none; padding: 0; }
   }
+  /* food picker */
+  #foodBtn { width: 100%; }
+  #pickedWrap { margin-top: 8px; display: none; }
+  .picked {
+    display: flex; align-items: center; gap: 8px; justify-content: space-between;
+    background: #f0fbf9; border: 1px solid #b9e5df; border-radius: 10px;
+    padding: 7px 10px; margin-bottom: 6px; font-size: 14px;
+  }
+  .picked .pname { flex: 1; color: #0f5f57; }
+  .picked .pg { color: #6b7280; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #foodSheet { align-items: stretch; justify-content: center; padding: 0; }
+  .sheet { background: #f1f5f4; width: 100%; max-width: 640px; display: flex; flex-direction: column; max-height: 100%; }
+  .sheethead {
+    background: #0d9488; color: #fff; display: flex; gap: 10px; align-items: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 12px;
+  }
+  .sheethead h3 { flex: 1; font-size: 17px; font-weight: 700; }
+  .sheetsearch { padding: 10px 12px 8px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+  .sheetsearch input {
+    width: 100%; font-size: 16px; padding: 10px 12px; border: 1.5px solid #d1d5db;
+    border-radius: 10px; min-height: 44px; appearance: none; -webkit-appearance: none;
+  }
+  .sheetnote { font-size: 12px; color: #6b7280; margin-top: 7px; line-height: 1.5; }
+  .foodlist { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px 14px; }
+  .foodrow { background: #fff; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .foodrow.on { border: 1.5px solid #0d9488; }
+  .foodrow .fname { flex: 1; font-size: 15px; line-height: 1.35; }
+  .foodrow .fname small { display: block; color: #6b7280; font-size: 13px; }
+  .foodrow .fg { font-weight: 700; color: #0f5f57; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .qty { display: flex; align-items: center; gap: 5px; }
+  .qty button {
+    width: 38px; height: 38px; border-radius: 10px; border: 1.5px solid #0d9488;
+    background: #fff; color: #0d9488; font-size: 20px; font-weight: 700; cursor: pointer; line-height: 1; padding: 0;
+  }
+  .qty b { min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
+  .fedit { border: 0; background: #f3f4f6; border-radius: 8px; padding: 8px 9px; cursor: pointer; font-size: 14px; min-height: 36px; }
+  .fedit.del { color: #b91c1c; }
+  .sheetfoot {
+    background: #fff; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; align-items: center;
+    padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
+  .sheetfoot .total { flex: 1; font-size: 17px; font-weight: 700; color: #0f5f57; font-variant-numeric: tabular-nums; }
+  #newFoodCard { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 10px; display: none; }
+  #newFoodCard input {
+    width: 100%; font-size: 16px; padding: 10px 11px; border: 1.5px solid #d1d5db;
+    border-radius: 10px; margin-bottom: 8px; min-height: 44px; appearance: none; -webkit-appearance: none;
+  }
+  .carbdetail { display: block; color: #6b7280; font-size: 12px; line-height: 1.4; margin-top: 2px; }
   /* overlays */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50;
@@ -219,6 +267,11 @@
       </div>
 
       <div class="field">
+        <button type="button" class="minibtn" id="foodBtn">🍽️ <span id="foodBtnText">Calculate carbs from foods</span></button>
+        <div id="pickedWrap"></div>
+      </div>
+
+      <div class="field">
         <label for="insulin"><span id="l_insulin">Insulin dose (units)</span> <span class="unit" id="l_optional1"></span></label>
         <input type="number" id="insulin" inputmode="decimal" step="any" min="0">
       </div>
@@ -287,6 +340,36 @@
   </div>
 </div>
 
+<div class="overlay" id="foodSheet">
+  <div class="sheet">
+    <div class="sheethead">
+      <h3 id="fs_title">Choose foods</h3>
+      <button type="button" class="hbtn" id="foodCloseBtn" aria-label="close">✕</button>
+    </div>
+    <div class="sheetsearch">
+      <input type="search" id="foodSearch" autocomplete="off">
+      <p class="sheetnote" id="fs_note"></p>
+    </div>
+    <div class="foodlist">
+      <button type="button" class="minibtn" id="newFoodBtn" style="width:100%;margin-bottom:10px">＋ <span id="nf_add">Add a food</span></button>
+      <div id="newFoodCard">
+        <input type="text" id="nfName">
+        <input type="text" id="nfUnit">
+        <input type="number" id="nfGrams" inputmode="decimal" step="any" min="0">
+        <div class="formbtns" style="margin-top:0">
+          <button type="button" class="savebtn" id="nfSave">Save</button>
+          <button type="button" class="cancelbtn" id="nfCancel">Cancel</button>
+        </div>
+      </div>
+      <div id="foodList"></div>
+    </div>
+    <div class="sheetfoot">
+      <span class="total" id="foodTotal"></span>
+      <button type="button" class="savebtn" id="foodUseBtn" style="flex:0 0 auto;padding:13px 22px">Use</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="lightbox">
   <img id="lightboxImg" alt="meal photo">
   <button type="button" class="hbtn" id="lightboxClose">✕</button>
@@ -341,6 +424,21 @@
       , setupWarn: 'Server setup is not finished: the site owner must set API_SECRET and add "careportal" to ENABLE, otherwise meals cannot be saved.'
       , photoError: 'Could not read this photo.'
       , ok: 'OK'
+      , foodBtn: 'Calculate carbs from foods'
+      , chooseFoods: 'Choose foods'
+      , searchFood: 'Search for a food…'
+      , foodsNote: 'Portions are from the doctor’s list. Tap ✎ on any food to change its number.'
+      , gram: 'g'
+      , total: 'Total'
+      , use: 'Use'
+      , addFood: 'Add a food'
+      , foodName: 'Food name (for example: Rice)'
+      , foodUnit: 'Portion (for example: 1 spoon)'
+      , foodGrams: 'Carbs in one portion (grams)'
+      , editGrams: 'Carbs in one portion, in grams:'
+      , deleteFoodAsk: 'Remove this food from the list?'
+      , foodNeedsName: 'Please write the name and the grams.'
+      , noFoodFound: 'No food with that name. Use “Add a food” to create it.'
     }
     , ar: {
       title: 'سجل الكارب'
@@ -383,6 +481,21 @@
       , setupWarn: 'إعداد الخادم غير مكتمل: يجب على مالك الموقع تعيين API_SECRET وإضافة "careportal" إلى ENABLE حتى يمكن حفظ الوجبات.'
       , photoError: 'تعذر قراءة هذه الصورة.'
       , ok: 'حسنًا'
+      , foodBtn: 'احسبي الكارب من الأطعمة'
+      , chooseFoods: 'اختاري الأطعمة'
+      , searchFood: 'ابحثي عن صنف…'
+      , foodsNote: 'المقادير مأخوذة من قائمة الطبيب. اضغطي ✎ على أي صنف لتغيير رقمه.'
+      , gram: 'جم'
+      , total: 'المجموع'
+      , use: 'استخدام'
+      , addFood: 'إضافة صنف'
+      , foodName: 'اسم الصنف (مثال: أرز)'
+      , foodUnit: 'المقدار (مثال: ملعقة واحدة)'
+      , foodGrams: 'الكارب في المقدار الواحد (جرام)'
+      , editGrams: 'الكارب في المقدار الواحد بالجرام:'
+      , deleteFoodAsk: 'حذف هذا الصنف من القائمة؟'
+      , foodNeedsName: 'اكتبي الاسم وعدد الجرامات.'
+      , noFoodFound: 'لا يوجد صنف بهذا الاسم. استخدمي «إضافة صنف» لإضافته.'
     }
   };
 
@@ -623,6 +736,265 @@
     return isNaN(n) ? null : n;
   }
 
+  /* ---------------- food list (carb exchanges) ---------------- */
+  // Portions taken from the doctor's exchange list: one starch portion = 15 g of carbs.
+  // Every number here can be changed by the user; changes are kept on this device.
+  var DEFAULT_FOODS = [
+    { id: 'rice-spoon', ar: 'أرز مطبوخ', arU: 'ملعقة كبيرة', en: 'Cooked rice', enU: '1 large spoon', g: 12 }
+    , { id: 'rice-cup', ar: 'أرز مطبوخ', arU: '⅓ كوب', en: 'Cooked rice', enU: '⅓ cup', g: 15 }
+    , { id: 'bread-plain', ar: 'خبز مفرد أو تورتيلا', arU: '¼ رغيف', en: 'Flat bread or tortilla', enU: '¼ loaf', g: 15 }
+    , { id: 'bread-shami', ar: 'خبز شامي', arU: '¼ رغيف', en: 'Shami (pita) bread', enU: '¼ loaf', g: 15 }
+    , { id: 'bread-turkish', ar: 'خبز تركي', arU: '¼ رغيف', en: 'Turkish bread', enU: '¼ loaf', g: 15 }
+    , { id: 'tamees', ar: 'تميس', arU: '⅛ قطعة', en: 'Tamees bread', enU: '⅛ piece', g: 15 }
+    , { id: 'samoli', ar: 'خبز همبرجر أو صامولي', arU: '½ قطعة', en: 'Burger bun or samoli', enU: '½ piece', g: 15 }
+    , { id: 'roll', ar: 'خبز إفرنجي (رول صغير)', arU: '1 قطعة', en: 'Small bread roll', enU: '1 piece', g: 15 }
+    , { id: 'toast', ar: 'توست (أبيض أو نخالة)', arU: '1 شريحة (30 جم)', en: 'Toast (white or bran)', enU: '1 slice (30 g)', g: 15 }
+    , { id: 'shreek', ar: 'شريك', arU: '¼ قطعة', en: 'Shreek bread', enU: '¼ piece', g: 15 }
+    , { id: 'pasta', ar: 'مكرونة أو باستا', arU: '½ كوب', en: 'Pasta or macaroni', enU: '½ cup', g: 15 }
+    , { id: 'couscous', ar: 'كسكس', arU: '⅓ كوب', en: 'Couscous', enU: '⅓ cup', g: 15 }
+    , { id: 'jareesh', ar: 'جريش أو برغل', arU: '½ كوب', en: 'Jareesh or bulgur', enU: '½ cup', g: 15 }
+    , { id: 'potato', ar: 'بطاطس مسلوقة أو مشوية', arU: '⅓ كوب (90 جم)', en: 'Boiled or baked potato', enU: '⅓ cup (90 g)', g: 15 }
+    , { id: 'corn', ar: 'ذرة مسلوقة', arU: '½ كوب', en: 'Boiled corn', enU: '½ cup', g: 15 }
+    , { id: 'legumes', ar: 'فاصوليا أو لوبيا أو عدس أو فول', arU: '½ كوب', en: 'Beans, lentils or fava', enU: '½ cup', g: 15 }
+    , { id: 'oats-cooked', ar: 'شوفان مطبوخ', arU: '½ كوب', en: 'Cooked oats', enU: '½ cup', g: 15 }
+    , { id: 'oats-raw', ar: 'شوفان غير مطبوخ', arU: '3 ملاعق طعام', en: 'Uncooked oats', enU: '3 tablespoons', g: 15 }
+    , { id: 'cornflakes', ar: 'حبوب إفطار غير محلاة (كورن فليكس)', arU: '¾ كوب', en: 'Unsweetened cereal (corn flakes)', enU: '¾ cup', g: 15 }
+    , { id: 'granola', ar: 'جرانولا', arU: '¼ كوب', en: 'Granola', enU: '¼ cup', g: 15 }
+    , { id: 'flour', ar: 'دقيق قمح كامل', arU: '2 ملعقة طعام', en: 'Whole wheat flour', enU: '2 tablespoons', g: 15 }
+    , { id: 'pancake', ar: 'بانكيك أو وافل', arU: '1 قطعة', en: 'Pancake or waffle', enU: '1 piece', g: 15 }
+    , { id: 'popcorn', ar: 'فشار (بدون دهن)', arU: '3 أكواب', en: 'Popcorn (no fat)', enU: '3 cups', g: 15 }
+    , { id: 'branbiscuit', ar: 'بسكويت النخالة', arU: '4 حبات', en: 'Bran biscuits', enU: '4 pieces', g: 15 }
+    , { id: 'rusk', ar: 'شابورة جافة', arU: '2 حبة', en: 'Dry rusk', enU: '2 pieces', g: 15 }
+    , { id: 'chips', ar: 'شيبس أو ناتشوز', arU: '12–15 قطعة', en: 'Chips or nachos', enU: '12–15 pieces', g: 15 }
+    , { id: 'honey', ar: 'عسل أو مربى أو دبس', arU: '1 ملعقة طعام (15 جم)', en: 'Honey, jam or syrup', enU: '1 tablespoon (15 g)', g: 15 }
+    , { id: 'sugar-tsp', ar: 'سكر', arU: '1 ملعقة صغيرة', en: 'Sugar', enU: '1 teaspoon', g: 4 }
+    , { id: 'sugar-tbsp', ar: 'سكر', arU: '1 ملعقة طعام', en: 'Sugar', enU: '1 tablespoon', g: 12 }
+    , { id: 'milk', ar: 'حليب', arU: '1 كوب', en: 'Milk', enU: '1 cup', g: 12 }
+    , { id: 'fruit', ar: 'فاكهة متوسطة (تفاح، برتقال…)', arU: '1 حبة', en: 'Medium fruit (apple, orange…)', enU: '1 piece', g: 15 }
+    , { id: 'juice', ar: 'عصير', arU: '½ كوب', en: 'Juice', enU: '½ cup', g: 15 }
+  ];
+
+  var picker = { items: [], q: '' };
+
+  function readJson (key, dflt) {
+    try {
+      var raw = localStorage.getItem(key);
+      var val = raw ? JSON.parse(raw) : null;
+      return val === null || val === undefined ? dflt : val;
+    } catch (e) { return dflt; }
+  }
+
+  function writeJson (key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ }
+  }
+
+  // Search should work whichever language is on screen, and forgive the
+  // common Arabic spelling variants (ارز / أرز, حبه / حبة …).
+  function normalizeSearch (str) {
+    return String(str || '').toLowerCase()
+      .replace(/[ً-ْـ]/g, '')
+      .replace(/[أإآٱ]/g, 'ا')
+      .replace(/ى/g, 'ي')
+      .replace(/ئ/g, 'ي')
+      .replace(/ؤ/g, 'و')
+      .replace(/ة/g, 'ه');
+  }
+
+  function allFoods () {
+    var grams = readJson('ct-food-g', {});
+    var hidden = readJson('ct-food-hidden', []);
+    var custom = readJson('ct-food-custom', []);
+    return DEFAULT_FOODS.concat(custom)
+      .filter(function (f) { return hidden.indexOf(f.id) < 0; })
+      .map(function (f) {
+        var override = grams[f.id];
+        return {
+          id: f.id
+          , name: lang === 'ar' ? f.ar : (f.en || f.ar)
+          , unit: lang === 'ar' ? f.arU : (f.enU || f.arU)
+          , key: normalizeSearch([f.ar, f.arU, f.en, f.enU].join(' '))
+          , g: (override === undefined || override === null) ? Number(f.g) : Number(override)
+          , custom: !!f.custom
+        };
+      });
+  }
+
+  function pickedTotal () {
+    return picker.items.reduce(function (sum, i) { return sum + i.g * i.qty; }, 0);
+  }
+
+  function findPicked (id) {
+    var found = null;
+    picker.items.forEach(function (i) { if (i.id === id) { found = i; } });
+    return found;
+  }
+
+  function renderPicked () {
+    var wrap = $('pickedWrap');
+    if (!picker.items.length) {
+      wrap.style.display = 'none';
+      wrap.innerHTML = '';
+      return;
+    }
+    wrap.style.display = 'block';
+    wrap.innerHTML = picker.items.map(function (i) {
+      return '<div class="picked"><span class="pname">' + esc(i.name) + ' · ' + esc(i.unit) + ' ×' + esc(i.qty) + '</span>'
+        + '<span class="pg">' + esc(round1(i.g * i.qty)) + ' ' + esc(t('gram')) + '</span></div>';
+    }).join('');
+  }
+
+  function renderFoodList () {
+    var q = normalizeSearch((picker.q || '').trim());
+    var foods = allFoods().filter(function (f) {
+      return !q || f.key.indexOf(q) >= 0;
+    });
+    $('foodList').innerHTML = foods.length ? foods.map(function (f) {
+      var chosen = findPicked(f.id);
+      var qty = chosen ? chosen.qty : 0;
+      return '<div class="foodrow' + (qty ? ' on' : '') + '">'
+        + '<button type="button" class="fedit" data-fact="edit" data-id="' + esc(f.id) + '" aria-label="edit">✎</button>'
+        + (f.custom ? '<button type="button" class="fedit del" data-fact="remove" data-id="' + esc(f.id) + '" aria-label="delete">🗑</button>' : '')
+        + '<span class="fname">' + esc(f.name) + '<small>' + esc(f.unit) + '</small></span>'
+        + '<span class="fg">' + esc(f.g) + ' ' + esc(t('gram')) + '</span>'
+        + '<span class="qty">'
+          + '<button type="button" data-fact="minus" data-id="' + esc(f.id) + '" aria-label="less">−</button>'
+          + '<b>' + esc(qty) + '</b>'
+          + '<button type="button" data-fact="plus" data-id="' + esc(f.id) + '" aria-label="more">+</button>'
+        + '</span></div>';
+    }).join('') : '<p style="text-align:center;color:#6b7280;padding:20px;line-height:1.6">' + esc(t('noFoodFound')) + '</p>';
+    $('foodTotal').textContent = t('total') + ': ' + round1(pickedTotal()) + ' ' + t('gram');
+  }
+
+  function changeQty (id, delta) {
+    var foods = allFoods();
+    var food = null;
+    foods.forEach(function (f) { if (f.id === id) { food = f; } });
+    if (!food) { return; }
+    var chosen = findPicked(id);
+    if (!chosen) {
+      if (delta < 0) { return; }
+      picker.items.push({ id: food.id, name: food.name, unit: food.unit, g: food.g, qty: delta });
+    } else {
+      chosen.qty += delta;
+      chosen.g = food.g;
+      chosen.name = food.name;
+      chosen.unit = food.unit;
+      if (chosen.qty <= 0) {
+        picker.items = picker.items.filter(function (i) { return i.id !== id; });
+      }
+    }
+    renderFoodList();
+  }
+
+  function editFoodGrams (id) {
+    var foods = allFoods();
+    var food = null;
+    foods.forEach(function (f) { if (f.id === id) { food = f; } });
+    if (!food) { return; }
+    var answer = window.prompt(food.name + ' · ' + food.unit + '\n' + t('editGrams'), String(food.g));
+    if (answer === null) { return; }
+    var value = Number(String(answer).replace(',', '.'));
+    if (isNaN(value) || value < 0) { return; }
+    var grams = readJson('ct-food-g', {});
+    grams[id] = value;
+    writeJson('ct-food-g', grams);
+    var chosen = findPicked(id);
+    if (chosen) { chosen.g = value; }
+    renderFoodList();
+  }
+
+  function removeFood (id) {
+    if (!window.confirm(t('deleteFoodAsk'))) { return; }
+    var custom = readJson('ct-food-custom', []).filter(function (f) { return f.id !== id; });
+    writeJson('ct-food-custom', custom);
+    picker.items = picker.items.filter(function (i) { return i.id !== id; });
+    renderFoodList();
+  }
+
+  function saveNewFood () {
+    var name = $('nfName').value.trim();
+    var unit = $('nfUnit').value.trim();
+    var grams = num($('nfGrams').value);
+    if (!name || grams === null || grams < 0) {
+      window.alert(t('foodNeedsName'));
+      return;
+    }
+    var custom = readJson('ct-food-custom', []);
+    var food = {
+      id: 'c' + Date.now().toString(36)
+      , ar: name, arU: unit || '1', en: name, enU: unit || '1'
+      , g: grams, custom: true
+    };
+    custom.push(food);
+    writeJson('ct-food-custom', custom);
+    $('nfName').value = '';
+    $('nfUnit').value = '';
+    $('nfGrams').value = '';
+    $('newFoodCard').style.display = 'none';
+    picker.q = '';
+    $('foodSearch').value = '';
+    changeQty(food.id, 1);
+  }
+
+  function openFoodSheet () {
+    picker.q = '';
+    $('foodSearch').value = '';
+    $('newFoodCard').style.display = 'none';
+    renderFoodList();
+    $('foodSheet').classList.add('open');
+  }
+
+  function closeFoodSheet () {
+    $('foodSheet').classList.remove('open');
+  }
+
+  function useFoodTotal () {
+    var total = round1(pickedTotal());
+    $('carbs').value = total > 0 ? total : '';
+    closeFoodSheet();
+    renderPicked();
+  }
+
+  function itemsForSaving () {
+    return picker.items.map(function (i) {
+      return { i: i.id, n: i.name, u: i.unit, q: i.qty, g: i.g };
+    });
+  }
+
+  function itemsFromDoc (doc) {
+    if (!doc || !Array.isArray(doc.carbItems)) { return []; }
+    return doc.carbItems.map(function (i) {
+      return {
+        id: i.i || i.n
+        , name: i.n || ''
+        , unit: i.u || ''
+        , g: Number(i.g) || 0
+        , qty: Number(i.q) || 1
+      };
+    });
+  }
+
+  // Show each food in the language the reader is using (the doctor may read
+  // English while the meal was entered in Arabic). Foods added by hand only
+  // exist on the phone that created them, so those keep their saved name.
+  function localizedItems (doc) {
+    if (!doc || !Array.isArray(doc.carbItems) || !doc.carbItems.length) { return []; }
+    var byId = {};
+    allFoods().forEach(function (f) { byId[f.id] = f; });
+    return doc.carbItems.map(function (i) {
+      var known = byId[i.i];
+      return {
+        name: known ? known.name : (i.n || '')
+        , unit: known ? known.unit : (i.u || '')
+        , qty: Number(i.q) || 1
+      };
+    });
+  }
+
+  function itemsSummary (doc) {
+    return localizedItems(doc).map(function (i) { return i.name + ' ×' + i.qty; }).join(' · ');
+  }
+
   /* ---------------- rendering ---------------- */
   function applyLang () {
     document.documentElement.lang = lang;
@@ -666,6 +1038,19 @@
     $('u_ok').textContent = t('ok');
     $('u_cancel').textContent = t('cancel');
     $('setupBanner').textContent = t('setupWarn');
+    $('foodBtnText').textContent = t('foodBtn');
+    $('fs_title').textContent = t('chooseFoods');
+    $('foodSearch').placeholder = t('searchFood');
+    $('fs_note').textContent = t('foodsNote');
+    $('nf_add').textContent = t('addFood');
+    $('nfName').placeholder = t('foodName');
+    $('nfUnit').placeholder = t('foodUnit');
+    $('nfGrams').placeholder = t('foodGrams');
+    $('nfSave').textContent = t('save');
+    $('nfCancel').textContent = t('cancel');
+    $('foodUseBtn').textContent = t('use');
+    renderPicked();
+    renderFoodList();
     renderChips();
     render();
   }
@@ -747,7 +1132,8 @@
         '<td data-label="' + esc(t('hTime')) + '"><span class="tstamp">' + esc(when.t) + '<small>' + esc(when.d) + '</small></span></td>'
         + '<td data-label="' + esc(t('hBefore')) + '">' + bgCell(e.glucose) + '</td>'
         + '<td data-label="' + esc(t('hAfter')) + '">' + afterHtml + '</td>'
-        + '<td data-label="' + esc(t('hCarbs')) + '"' + (num(e.carbs) === null ? ' class="hideempty"' : '') + '>' + (num(e.carbs) === null ? '—' : esc(num(e.carbs)) + ' g') + '</td>'
+        + '<td data-label="' + esc(t('hCarbs')) + '"' + (num(e.carbs) === null ? ' class="hideempty"' : '') + '><span>' + (num(e.carbs) === null ? '—' : esc(num(e.carbs)) + ' ' + esc(t('gram')))
+          + (itemsSummary(e) ? '<small class="carbdetail">' + esc(itemsSummary(e)) + '</small>' : '') + '</span></td>'
         + '<td data-label="' + esc(t('hFactor')) + '"' + (num(e.carbFactor) === null ? ' class="hideempty"' : '') + '><b>' + (num(e.carbFactor) === null ? '—' : esc(num(e.carbFactor))) + '</b></td>'
         + '<td data-label="' + esc(t('hInsulin')) + '"' + (num(e.insulin) === null ? ' class="hideempty"' : '') + '>' + (num(e.insulin) === null ? '—' : esc(num(e.insulin)) + ' U') + '</td>'
         + '<td data-label="' + esc(t('hPhoto')) + '"' + (e.mealImageId ? '' : ' class="hideempty"') + '>' + photoHtml + '</td>'
@@ -770,6 +1156,8 @@
     state.editingId = doc ? doc._id : null;
     state.editingDoc = doc || null;
     resetPhotoState();
+    picker.items = itemsFromDoc(doc);
+    renderPicked();
 
     $('mealTime').value = toInputValue(doc ? new Date(doc.created_at) : new Date());
     $('bgBefore').value = doc && num(doc.glucose) !== null ? num(doc.glucose) : '';
@@ -796,6 +1184,8 @@
     state.editingId = null;
     state.editingDoc = null;
     resetPhotoState();
+    picker.items = [];
+    renderPicked();
     $('mealForm').reset();
     $('formCard').style.display = 'none';
     if (state.authenticated) { $('addMealBtn').style.display = 'block'; }
@@ -852,6 +1242,7 @@
     setOrDelete('carbFactor', num($('carbFactor').value));
     setOrDelete('insulin', num($('insulin').value));
     setOrDelete('notes', $('notes').value.trim() || null);
+    setOrDelete('carbItems', picker.items.length ? itemsForSaving() : null);
     if (num($('bgBefore').value) !== null) {
       doc.glucoseType = 'Finger';
       doc.units = state.units;
@@ -926,7 +1317,7 @@
 
   function exportCsv () {
     var rows = [['Date', 'Time', 'Sugar before (' + unitsLabel() + ')', 'Sugar after (' + unitsLabel() + ')'
-      , 'Carbs (g)', 'Carb factor', 'Insulin (units)', 'Notes', 'Photo']];
+      , 'Carbs (g)', 'Meal details', 'Carb factor', 'Insulin (units)', 'Notes', 'Photo']];
     state.entries.slice().reverse().forEach(function (e) {
       var d = new Date(e.created_at);
       rows.push([
@@ -935,6 +1326,9 @@
         , num(e.glucose) === null ? '' : num(e.glucose)
         , num(e.bgAfter) === null ? '' : num(e.bgAfter)
         , num(e.carbs) === null ? '' : num(e.carbs)
+        , localizedItems(e).map(function (i) {
+          return i.name + (i.unit ? ' (' + i.unit + ')' : '') + ' x' + i.qty;
+        }).join(' + ')
         , num(e.carbFactor) === null ? '' : num(e.carbFactor)
         , num(e.insulin) === null ? '' : num(e.insulin)
         , e.notes || ''
@@ -1065,6 +1459,31 @@
     if (act === 'after' && entry) { openForm(entry, true); }
     if (act === 'del') { deleteMeal(id); }
   });
+
+  $('foodBtn').onclick = openFoodSheet;
+  $('foodCloseBtn').onclick = closeFoodSheet;
+  $('foodUseBtn').onclick = useFoodTotal;
+  $('foodSearch').addEventListener('input', function () {
+    picker.q = this.value;
+    renderFoodList();
+  });
+  $('foodList').addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-fact]');
+    if (!el) { return; }
+    var id = el.getAttribute('data-id');
+    var act = el.getAttribute('data-fact');
+    if (act === 'plus') { changeQty(id, 1); }
+    if (act === 'minus') { changeQty(id, -1); }
+    if (act === 'edit') { editFoodGrams(id); }
+    if (act === 'remove') { removeFood(id); }
+  });
+  $('newFoodBtn').onclick = function () {
+    var card = $('newFoodCard');
+    card.style.display = card.style.display === 'block' ? 'none' : 'block';
+    if (card.style.display === 'block') { $('nfName').focus(); }
+  };
+  $('nfSave').onclick = saveNewFood;
+  $('nfCancel').onclick = function () { $('newFoodCard').style.display = 'none'; };
 
   $('lightbox').onclick = function () { $('lightbox').classList.remove('open'); };
   $('csvBtn').onclick = exportCsv;
