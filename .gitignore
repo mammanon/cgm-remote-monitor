@@ -1,4 +1,3 @@
-bower_components/
 node_modules/
 
 
@@ -9,7 +8,6 @@ bundle/bundle.out.js
 my.env
 
 *.env
-static/bower_components/
 .*.sw?
 .DS_Store
 

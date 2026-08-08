@@ -1,0 +1,47 @@
+# Runs Nightscout + the Carb Tracker with its database.
+#
+#   1. copy .env.example to .env and set API_SECRET
+#   2. docker compose up -d --build
+#   3. open http://<server>:1337/carbtracker/
+#
+# With a domain name pointed at the server you can get automatic HTTPS:
+#   set DOMAIN in .env and run:  docker compose --profile https up -d --build
+
+services:
+  mongo:
+    # MongoDB 4.0 on purpose: this Nightscout version speaks the old wire
+    # protocol and cannot talk to MongoDB 6+ or to MongoDB Atlas.
+    image: mongo:4.0
+    restart: unless-stopped
+    volumes:
+      - mongodata:/data/db
+
+  nightscout:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "1337:1337"
+    environment:
+      MONGO_CONNECTION: mongodb://mongo/nightscout
+      API_SECRET: ${API_SECRET:?Set API_SECRET in the .env file (at least 12 characters)}
+      ENABLE: careportal
+      TREATMENTS_AUTH: "true"
+      DISPLAY_UNITS: ${DISPLAY_UNITS:-mg/dl}
+
+  caddy:
+    # optional automatic-HTTPS front door: docker compose --profile https up -d
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${DOMAIN:-example.com} --to nightscout:1337
+    volumes:
+      - caddydata:/data
+
+volumes:
+  mongodata:
+  caddydata:

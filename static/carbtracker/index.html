@@ -472,7 +472,8 @@
   }
 
   function storeHash (hash) {
-    try { localStorage.setItem('apisecrethash', JSON.stringify(hash)); } catch (e) { /* private mode */ }
+    // raw hex, exactly the way the main Nightscout page stores it
+    try { localStorage.setItem('apisecrethash', hash); } catch (e) { /* private mode */ }
   }
 
   function authHeaders (extra) {

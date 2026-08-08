@@ -58,6 +58,44 @@ Two easy ways:
 > website address can *view* the data. Only share the link with people you
 > trust (like the doctor), and do not post it publicly.
 
+## How to run it (hosting)
+
+The easiest way is **Docker** — it works on any small cloud server
+(a ~$5/month VPS from Hetzner, DigitalOcean, Contabo…) or a home computer
+that stays on. Install Docker, then:
+
+```bash
+git clone https://github.com/mammanon/cgm-remote-monitor
+cd cgm-remote-monitor
+git checkout claude/diabetes-carb-tracker-ws48kl   # until this branch is merged
+cp .env.example .env
+nano .env                  # set your own API_SECRET (min 12 characters)
+docker compose up -d --build
+```
+
+Then open `http://YOUR-SERVER-IP:1337/carbtracker/` on the phone.
+
+**With a domain name** (recommended, gives you a proper `https://` address):
+point a domain at the server, put it in `.env` as `DOMAIN=...`, and run:
+
+```bash
+docker compose --profile https up -d --build
+```
+
+Then the site is at `https://your-domain/carbtracker/` with an automatic
+free certificate.
+
+> ⚠️ **Database version matters:** this Nightscout version is from 2015 and
+> can only talk to **MongoDB 4.0 or older**. The `docker-compose.yml` uses
+> MongoDB 4.0 on purpose. It can NOT use MongoDB Atlas or MongoDB 6+.
+
+**Without Docker:** install Node.js and a local MongoDB ≤ 4.0, then
+`npm install`, set the environment variables below, and `node server.js`.
+
+This setup was verified end-to-end: the server boots on Node 22 with
+MongoDB 4.0 and the whole tracker (add / edit / delete / photos / auth /
+CSV) passes an automated browser test suite against it.
+
 ## Server settings needed
 
 The tracker uses the normal Nightscout server. Make sure these environment
