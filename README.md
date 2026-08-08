@@ -77,6 +77,15 @@ Community maintained fork of the
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
+# Carb Tracker (meal log)
+
+This fork adds a simple, phone-friendly **meal log for Type 1 Diabetes** at
+`/carbtracker/`: time of the meal (filled automatically), sugar before and
+after the meal, carbs, the patient's own **carb factor**, optional insulin
+dose, notes and a **photo of the meal**. It is view-only for anyone without
+the API secret, so the link can be shared with the doctor.
+See **[CARBTRACKER.md](CARBTRACKER.md)** for instructions.
+
 # Install
 
 Requirements:

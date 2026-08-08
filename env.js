@@ -98,6 +98,7 @@ function setMongo() {
     }
   }
   env.treatments_collection = readENV('MONGO_TREATMENTS_COLLECTION', 'treatments');
+  env.mealimages_collection = readENV('MONGO_MEALIMAGES_COLLECTION', 'mealimages');
   env.profile_collection = readENV('MONGO_PROFILE_COLLECTION', 'profile');
   env.devicestatus_collection = readENV('MONGO_DEVICESTATUS_COLLECTION', 'devicestatus');
 

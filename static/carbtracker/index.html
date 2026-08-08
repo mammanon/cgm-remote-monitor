@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Carb Tracker">
+<meta name="theme-color" content="#0d9488">
+<title>Carb Tracker</title>
+<link rel="apple-touch-icon" href="/images/apple-touch-icon-152x152.png">
+<link rel="icon" href="/images/android-chrome-192x192.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f1f5f4;
+    color: #1f2937;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: #0d9488; color: #fff;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  }
+  header h1 { font-size: 19px; font-weight: 700; flex: 1; }
+  .hbtn {
+    background: rgba(255,255,255,.18); color: #fff; border: 0;
+    border-radius: 10px; padding: 9px 12px; font-size: 15px; font-weight: 600;
+    cursor: pointer; min-height: 40px;
+  }
+  .hbtn:active { background: rgba(255,255,255,.3); }
+  main { max-width: 860px; margin: 0 auto; padding: 14px 12px; }
+  .banner {
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 12px;
+    font-size: 15px; line-height: 1.45; display: none;
+  }
+  .banner.warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .banner.info { background: #e0f2f1; color: #0f5f57; border: 1px solid #99d6cf; }
+  .banner .hbtn { background: #0d9488; margin-inline-start: 8px; }
+  .card {
+    background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    padding: 16px; margin-bottom: 14px;
+  }
+  #addMealBtn {
+    display: block; width: 100%; border: 0; cursor: pointer;
+    background: #0d9488; color: #fff; font-size: 18px; font-weight: 700;
+    border-radius: 14px; padding: 15px; margin-bottom: 14px;
+    box-shadow: 0 2px 6px rgba(13,148,136,.35);
+  }
+  #addMealBtn:active { background: #0b7d72; }
+  form h2 { font-size: 17px; margin-bottom: 12px; color: #0f5f57; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+  .field .unit { color: #6b7280; font-weight: 400; }
+  .field input[type=number], .field input[type=text], .field input[type=datetime-local], .field textarea {
+    width: 100%; font-size: 17px; padding: 11px 12px;
+    border: 1.5px solid #d1d5db; border-radius: 10px; background: #fff; color: #111827;
+    min-height: 46px; appearance: none; -webkit-appearance: none;
+  }
+  .field input:focus, .field textarea:focus { outline: none; border-color: #0d9488; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .timewrap { display: flex; gap: 8px; }
+  .timewrap input { flex: 1; }
+  .minibtn {
+    border: 1.5px solid #0d9488; color: #0d9488; background: #fff;
+    border-radius: 10px; padding: 0 14px; font-size: 15px; font-weight: 600; cursor: pointer; min-height: 46px;
+  }
+  .photo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #photoPreviewWrap { position: relative; display: none; }
+  #photoPreview { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid #d1d5db; }
+  #removePhotoBtn {
+    position: absolute; top: -8px; inset-inline-end: -8px;
+    width: 26px; height: 26px; border-radius: 50%; border: 0;
+    background: #dc2626; color: #fff; font-size: 15px; line-height: 1; cursor: pointer;
+  }
+  .formbtns { display: flex; gap: 10px; margin-top: 16px; }
+  .savebtn {
+    flex: 1; border: 0; background: #0d9488; color: #fff; font-size: 17px; font-weight: 700;
+    border-radius: 12px; padding: 13px; cursor: pointer; min-height: 48px;
+  }
+  .savebtn:disabled { opacity: .6; }
+  .cancelbtn {
+    border: 1.5px solid #9ca3af; background: #fff; color: #4b5563; font-size: 16px;
+    border-radius: 12px; padding: 13px 18px; cursor: pointer; min-height: 48px;
+  }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
+  .chip {
+    border: 1.5px solid #0d9488; color: #0d9488; background: #fff; white-space: nowrap;
+    border-radius: 999px; padding: 8px 16px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .chip.on { background: #0d9488; color: #fff; }
+  #stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .stat { background: #fff; border-radius: 12px; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,.07); flex: 1; min-width: 96px; text-align: center; }
+  .stat b { display: block; font-size: 18px; color: #0f5f57; }
+  .stat span { font-size: 12px; color: #6b7280; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: start; font-size: 13px; color: #6b7280; font-weight: 600;
+    padding: 8px 8px; border-bottom: 2px solid #e5e7eb; white-space: nowrap;
+  }
+  tbody td { padding: 10px 8px; border-bottom: 1px solid #f3f4f6; font-size: 15px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .bg { display: inline-block; min-width: 46px; text-align: center; font-weight: 700; border-radius: 8px; padding: 4px 8px; }
+  .bg.ok    { background: #dcfce7; color: #166534; }
+  .bg.low1  { background: #fee2e2; color: #b91c1c; }
+  .bg.low2  { background: #dc2626; color: #fff; }
+  .bg.high1 { background: #ffedd5; color: #c2410c; }
+  .bg.high2 { background: #fde68a; color: #92400e; }
+  .bg.none  { background: #f3f4f6; color: #9ca3af; font-weight: 400; }
+  .thumb { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; cursor: pointer; display: block; }
+  .rowbtn {
+    border: 0; background: #f3f4f6; border-radius: 8px; padding: 8px 10px;
+    font-size: 15px; cursor: pointer; min-width: 38px; min-height: 38px;
+  }
+  .rowbtn.del { color: #b91c1c; }
+  .addafter { border: 1px dashed #0d9488; background: #fff; color: #0d9488; border-radius: 8px; padding: 5px 9px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .tstamp { white-space: nowrap; line-height: 1.35; }
+  .tstamp small { color: #6b7280; display: block; }
+  .notecell { color: #4b5563; font-size: 14px; max-width: 180px; overflow-wrap: break-word; }
+  #empty { text-align: center; color: #6b7280; padding: 26px 10px; font-size: 15px; display: none; }
+  #csvBtn {
+    display: block; margin: 4px auto 6px; border: 1.5px solid #0d9488; background: #fff; color: #0d9488;
+    border-radius: 12px; padding: 12px 22px; font-size: 16px; font-weight: 600; cursor: pointer;
+  }
+  .sharehint { text-align: center; color: #6b7280; font-size: 13px; line-height: 1.5; padding: 0 10px; }
+  /* phone: table becomes cards */
+  @media (max-width: 700px) {
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tbody tr { background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; padding: 12px 14px; }
+    tbody td { border: 0; padding: 5px 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    tbody td::before { content: attr(data-label); font-size: 13px; color: #6b7280; font-weight: 600; }
+    td.actioncell { justify-content: flex-end; gap: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6; margin-top: 6px; }
+    td.actioncell::before { display: none; }
+    td.hideempty { display: none; }
+    .thumb { width: 64px; height: 64px; }
+    .notecell { max-width: none; text-align: end; }
+    #listcard { background: transparent; box-shadow: none; padding: 0; }
+  }
+  /* overlays */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .overlay.open { display: flex; }
+  .dialog { background: #fff; border-radius: 16px; padding: 20px; width: 100%; max-width: 380px; }
+  .dialog h3 { font-size: 17px; margin-bottom: 10px; color: #0f5f57; }
+  .dialog p { font-size: 14px; color: #6b7280; margin-bottom: 12px; line-height: 1.5; }
+  .dialog input {
+    width: 100%; font-size: 17px; padding: 11px 12px; border: 1.5px solid #d1d5db;
+    border-radius: 10px; margin-bottom: 8px; min-height: 46px;
+  }
+  .dialog .err { color: #b91c1c; font-size: 14px; min-height: 20px; margin-bottom: 6px; }
+  #lightbox { background: rgba(0,0,0,.88); flex-direction: column; gap: 14px; }
+  #lightbox img { max-width: 100%; max-height: 82vh; border-radius: 10px; }
+  #lightbox .hbtn { background: rgba(255,255,255,.25); }
+  #toast {
+    position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); left: 50%; transform: translateX(-50%);
+    background: #111827; color: #fff; border-radius: 999px; padding: 11px 20px; font-size: 15px;
+    z-index: 60; display: none; max-width: 90vw; text-align: center;
+  }
+  [dir="rtl"] thead th, [dir="rtl"] tbody td { text-align: start; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="pageTitle">Carb Tracker</h1>
+  <button type="button" class="hbtn" id="langBtn">عربي</button>
+  <button type="button" class="hbtn" id="lockBtn">🔓</button>
+</header>
+
+<main>
+  <div class="banner warn" id="setupBanner"></div>
+  <div class="banner info" id="readonlyBanner">
+    <span id="readonlyText"></span>
+    <button type="button" class="hbtn" id="unlockBtn2"></button>
+  </div>
+
+  <button type="button" id="addMealBtn">＋ <span id="addMealText">Add meal</span></button>
+
+  <div class="card" id="formCard" style="display:none">
+    <form id="mealForm" autocomplete="off">
+      <h2 id="formTitle">Add meal</h2>
+
+      <div class="field">
+        <label for="mealTime" id="l_time">Meal time</label>
+        <div class="timewrap">
+          <input type="datetime-local" id="mealTime" required>
+          <button type="button" class="minibtn" id="nowBtn">Now</button>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="bgBefore"><span id="l_before">Sugar before meal</span> <span class="unit" id="unitLabel1"></span></label>
+          <input type="number" id="bgBefore" inputmode="decimal" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="bgAfter"><span id="l_after">Sugar after meal</span> <span class="unit" id="unitLabel2"></span></label>
+          <input type="number" id="bgAfter" inputmode="decimal" step="any" min="0">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="carbs" id="l_carbs">Carbs (grams)</label>
+          <input type="number" id="carbs" inputmode="decimal" step="any" min="0">
+        </div>
+        <div class="field">
+          <label for="carbFactor" id="l_factor">Carb factor</label>
+          <input type="number" id="carbFactor" inputmode="decimal" step="any" min="0" placeholder="9">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="insulin"><span id="l_insulin">Insulin dose (units)</span> <span class="unit" id="l_optional1"></span></label>
+        <input type="number" id="insulin" inputmode="decimal" step="any" min="0">
+      </div>
+
+      <div class="field">
+        <label for="notes"><span id="l_notes">Notes</span> <span class="unit" id="l_optional2"></span></label>
+        <textarea id="notes" rows="2" style="resize:vertical"></textarea>
+      </div>
+
+      <div class="field">
+        <label id="l_photo">Meal photo</label>
+        <div class="photo-row">
+          <button type="button" class="minibtn" id="photoBtn">📷 <span id="photoBtnText">Add photo</span></button>
+          <input type="file" id="photoInput" accept="image/*" style="display:none">
+          <div id="photoPreviewWrap">
+            <img id="photoPreview" alt="">
+            <button type="button" id="removePhotoBtn" aria-label="remove">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="formbtns">
+        <button type="submit" class="savebtn" id="saveBtn">Save</button>
+        <button type="button" class="cancelbtn" id="cancelBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div id="stats"></div>
+
+  <div class="card" id="listcard">
+    <table id="mealTable">
+      <thead>
+        <tr>
+          <th id="h_time">Time</th>
+          <th id="h_before">Before</th>
+          <th id="h_after">After</th>
+          <th id="h_carbs">Carbs</th>
+          <th id="h_factor">Factor</th>
+          <th id="h_insulin">Insulin</th>
+          <th id="h_photo">Photo</th>
+          <th id="h_notes">Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="mealRows"></tbody>
+    </table>
+    <div id="empty"></div>
+  </div>
+
+  <button type="button" id="csvBtn">⬇ CSV</button>
+  <p class="sharehint" id="shareHint"></p>
+</main>
+
+<div class="overlay" id="unlockOverlay">
+  <div class="dialog">
+    <h3 id="u_title">Unlock</h3>
+    <p id="u_hint"></p>
+    <input type="password" id="secretInput" autocomplete="current-password">
+    <div class="err" id="u_err"></div>
+    <div class="formbtns" style="margin-top:4px">
+      <button type="button" class="savebtn" id="u_ok">OK</button>
+      <button type="button" class="cancelbtn" id="u_cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="lightbox">
+  <img id="lightboxImg" alt="meal photo">
+  <button type="button" class="hbtn" id="lightboxClose">✕</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+(function () {
+
+  /* ---------------- i18n ---------------- */
+  var I18N = {
+    en: {
+      title: 'Carb Tracker'
+      , addMeal: 'Add meal'
+      , editMeal: 'Edit meal'
+      , mealTime: 'Meal time'
+      , now: 'Now'
+      , before: 'Sugar before meal'
+      , after: 'Sugar after meal'
+      , carbs: 'Carbs (grams)'
+      , factor: 'Carb factor'
+      , insulin: 'Insulin dose (units)'
+      , notes: 'Notes'
+      , optional: '(optional)'
+      , photo: 'Meal photo'
+      , addPhoto: 'Add photo'
+      , changePhoto: 'Change photo'
+      , save: 'Save'
+      , cancel: 'Cancel'
+      , hTime: 'Time', hBefore: 'Before', hAfter: 'After', hCarbs: 'Carbs', hFactor: 'Factor', hInsulin: 'Insulin', hPhoto: 'Photo', hNotes: 'Notes'
+      , week: 'Week', twoWeeks: '2 Weeks', month: 'Month', threeMonths: '3 Months', all: 'All'
+      , meals: 'Meals', avgBefore: 'Avg before', avgAfter: 'Avg after', avgCarbs: 'Avg carbs', avgFactor: 'Avg factor'
+      , empty: 'No meals recorded in this period yet.'
+      , addAfter: '+ after'
+      , csv: 'Download CSV (for the doctor)'
+      , shareHint: 'To share with the doctor: send them this website link. They can see everything but cannot change it without the secret.'
+      , readonly: 'View only — unlock to add meals.'
+      , unlock: 'Unlock'
+      , unlockHint: 'Enter your API secret (the password you set for this website) to add and edit meals.'
+      , wrongSecret: 'Wrong secret — try again.'
+      , tooShort: 'The secret must be at least 12 characters.'
+      , lockedNow: 'Locked. The page is now view-only.'
+      , unlockedNow: 'Unlocked — you can add meals now.'
+      , deleteAsk: 'Delete this meal?'
+      , saving: 'Saving…'
+      , saved: 'Saved ✓'
+      , deleted: 'Deleted ✓'
+      , saveError: 'Could not save — check the connection and try again.'
+      , loadError: 'Could not load data from the server.'
+      , setupWarn: 'Server setup is not finished: the site owner must set API_SECRET and add "careportal" to ENABLE, otherwise meals cannot be saved.'
+      , photoError: 'Could not read this photo.'
+      , ok: 'OK'
+    }
+    , ar: {
+      title: 'سجل الكارب'
+      , addMeal: 'إضافة وجبة'
+      , editMeal: 'تعديل الوجبة'
+      , mealTime: 'وقت الوجبة'
+      , now: 'الآن'
+      , before: 'السكر قبل الوجبة'
+      , after: 'السكر بعد الوجبة'
+      , carbs: 'الكربوهيدرات (غرام)'
+      , factor: 'معامل الكارب'
+      , insulin: 'جرعة الإنسولين (وحدة)'
+      , notes: 'ملاحظات'
+      , optional: '(اختياري)'
+      , photo: 'صورة الوجبة'
+      , addPhoto: 'إضافة صورة'
+      , changePhoto: 'تغيير الصورة'
+      , save: 'حفظ'
+      , cancel: 'إلغاء'
+      , hTime: 'الوقت', hBefore: 'قبل', hAfter: 'بعد', hCarbs: 'كارب', hFactor: 'المعامل', hInsulin: 'إنسولين', hPhoto: 'صورة', hNotes: 'ملاحظات'
+      , week: 'أسبوع', twoWeeks: 'أسبوعان', month: 'شهر', threeMonths: '٣ أشهر', all: 'الكل'
+      , meals: 'الوجبات', avgBefore: 'متوسط قبل', avgAfter: 'متوسط بعد', avgCarbs: 'متوسط الكارب', avgFactor: 'متوسط المعامل'
+      , empty: 'لا توجد وجبات مسجلة في هذه الفترة.'
+      , addAfter: '+ بعد'
+      , csv: 'تنزيل ملف CSV (للطبيب)'
+      , shareHint: 'للمشاركة مع الطبيب: أرسل له رابط هذا الموقع. يمكنه رؤية كل شيء لكن لا يمكنه التعديل بدون كلمة السر.'
+      , readonly: 'عرض فقط — افتح القفل لإضافة الوجبات.'
+      , unlock: 'فتح'
+      , unlockHint: 'أدخل كلمة السر (API secret) الخاصة بالموقع لتتمكن من إضافة وتعديل الوجبات.'
+      , wrongSecret: 'كلمة السر غير صحيحة — حاول مرة أخرى.'
+      , tooShort: 'كلمة السر يجب أن تكون ١٢ حرفًا على الأقل.'
+      , lockedNow: 'تم القفل. الصفحة الآن للعرض فقط.'
+      , unlockedNow: 'تم الفتح — يمكنك إضافة الوجبات الآن.'
+      , deleteAsk: 'هل تريد حذف هذه الوجبة؟'
+      , saving: 'جارٍ الحفظ…'
+      , saved: 'تم الحفظ ✓'
+      , deleted: 'تم الحذف ✓'
+      , saveError: 'تعذر الحفظ — تحقق من الاتصال وحاول مرة أخرى.'
+      , loadError: 'تعذر تحميل البيانات من الخادم.'
+      , setupWarn: 'إعداد الخادم غير مكتمل: يجب على مالك الموقع تعيين API_SECRET وإضافة "careportal" إلى ENABLE حتى يمكن حفظ الوجبات.'
+      , photoError: 'تعذر قراءة هذه الصورة.'
+      , ok: 'حسنًا'
+    }
+  };
+
+  var lang = localStorage.getItem('carbtracker-lang')
+    || ((navigator.language || '').toLowerCase().indexOf('ar') === 0 ? 'ar' : 'en');
+  if (lang !== 'ar' && lang !== 'en') { lang = 'en'; }
+
+  function t (key) { return (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key; }
+
+  /* ---------------- state ---------------- */
+  var EVENT_TYPE = 'Meal Log';
+  var state = {
+    entries: []
+    , rangeDays: 14
+    , units: 'mg/dl'
+    , thresholds: { bgHigh: 260, bgTargetTop: 180, bgTargetBottom: 80, bgLow: 55 }
+    , careportalEnabled: true
+    , apiEnabled: true
+    , authHash: null
+    , authenticated: false
+    , editingId: null
+    , editingDoc: null
+    , photoDataUrl: null      // newly chosen photo (compressed data URL)
+    , photoRemoved: false
+    , busy: false
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------------- SHA-1 (for the API secret) ---------------- */
+  function jsSha1 (str) {
+    str = unescape(encodeURIComponent(str));
+    var n = str.length, i;
+    var words = [];
+    for (i = 0; i < n; i++) {
+      words[i >> 2] = (words[i >> 2] || 0) | ((str.charCodeAt(i) & 0xff) << (24 - (i % 4) * 8));
+    }
+    words[n >> 2] = (words[n >> 2] || 0) | (0x80 << (24 - (n % 4) * 8));
+    var total = (((n + 8) >> 6) + 1) * 16;
+    for (i = 0; i < total; i++) { words[i] = words[i] || 0; }
+    words[total - 1] = n * 8;
+    var h0 = 0x67452301, h1 = 0xEFCDAB89, h2 = 0x98BADCFE, h3 = 0x10325476, h4 = 0xC3D2E1F0;
+    var w = new Array(80);
+    function rol (x, s) { return (x << s) | (x >>> (32 - s)); }
+    for (var b = 0; b < total; b += 16) {
+      var a = h0, bb = h1, c = h2, d = h3, e = h4;
+      for (i = 0; i < 80; i++) {
+        w[i] = i < 16 ? words[b + i] : rol(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+        var f, k;
+        if (i < 20) { f = (bb & c) | (~bb & d); k = 0x5A827999; }
+        else if (i < 40) { f = bb ^ c ^ d; k = 0x6ED9EBA1; }
+        else if (i < 60) { f = (bb & c) | (bb & d) | (c & d); k = 0x8F1BBCDC; }
+        else { f = bb ^ c ^ d; k = 0xCA62C1D6; }
+        var tmp = (rol(a, 5) + f + e + k + w[i]) | 0;
+        e = d; d = c; c = rol(bb, 30); bb = a; a = tmp;
+      }
+      h0 = (h0 + a) | 0; h1 = (h1 + bb) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0;
+    }
+    function hex (x) {
+      var s = (x >>> 0).toString(16);
+      while (s.length < 8) { s = '0' + s; }
+      return s;
+    }
+    return hex(h0) + hex(h1) + hex(h2) + hex(h3) + hex(h4);
+  }
+
+  function sha1hex (str) {
+    if (window.crypto && window.crypto.subtle && window.TextEncoder) {
+      return window.crypto.subtle.digest('SHA-1', new TextEncoder().encode(str)).then(function (buf) {
+        var bytes = new Uint8Array(buf), out = '';
+        for (var i = 0; i < bytes.length; i++) { out += ('0' + bytes[i].toString(16)).slice(-2); }
+        return out;
+      }).catch(function () { return jsSha1(str); });
+    }
+    return Promise.resolve(jsSha1(str));
+  }
+
+  /* ---------------- auth ---------------- */
+  // Same localStorage key the main Nightscout site uses, so unlocking once works for both.
+  function getStoredHash () {
+    var raw = localStorage.getItem('apisecrethash');
+    if (!raw) { return null; }
+    if (raw.length > 1 && raw.charAt(0) === '"' && raw.charAt(raw.length - 1) === '"') {
+      raw = raw.slice(1, -1);
+    }
+    return /^[0-9a-f]{40}$/.test(raw) ? raw : null;
+  }
+
+  function storeHash (hash) {
+    try { localStorage.setItem('apisecrethash', JSON.stringify(hash)); } catch (e) { /* private mode */ }
+  }
+
+  function authHeaders (extra) {
+    var h = extra || {};
+    if (state.authHash) { h['api-secret'] = state.authHash; }
+    return h;
+  }
+
+  function verifyAuth (hash) {
+    return fetch('/api/v1/verifyauth?t=' + Date.now(), {
+      headers: { 'api-secret': hash }, cache: 'no-store'
+    }).then(function (r) { return r.json(); })
+      .then(function (j) { return j && j.message === 'OK'; })
+      .catch(function () { return false; });
+  }
+
+  function setAuthenticated (on) {
+    state.authenticated = on;
+    $('lockBtn').textContent = on ? '🔓' : '🔒';
+    $('readonlyBanner').style.display = on ? 'none' : 'block';
+    $('addMealBtn').style.display = on ? 'block' : 'none';
+    if (!on) { closeForm(); }
+    render();
+  }
+
+  /* ---------------- API helpers ---------------- */
+  function loadStatus () {
+    return fetch('/api/v1/status.json', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        var settings = s && s.settings || {};
+        if (settings.units) { state.units = settings.units; }
+        state.careportalEnabled = s.careportalEnabled !== false;
+        state.apiEnabled = s.apiEnabled !== false;
+        var th = settings.thresholds;
+        if (th && th.bgTargetTop) {
+          state.thresholds = {
+            bgHigh: Number(th.bgHigh) || 260
+            , bgTargetTop: Number(th.bgTargetTop) || 180
+            , bgTargetBottom: Number(th.bgTargetBottom) || 80
+            , bgLow: Number(th.bgLow) || 55
+          };
+        }
+        // site is in mmol but thresholds were left at the mg/dl defaults -> convert
+        if (isMmol() && state.thresholds.bgTargetTop > 40) {
+          state.thresholds = {
+            bgHigh: round1(state.thresholds.bgHigh / 18.018)
+            , bgTargetTop: round1(state.thresholds.bgTargetTop / 18.018)
+            , bgTargetBottom: round1(state.thresholds.bgTargetBottom / 18.018)
+            , bgLow: round1(state.thresholds.bgLow / 18.018)
+          };
+        }
+      })
+      .catch(function () { /* keep defaults */ });
+  }
+
+  function rangeStartISO () {
+    if (!state.rangeDays) { return '2000-01-01T00:00:00.000Z'; }
+    return new Date(Date.now() - state.rangeDays * 86400000).toISOString();
+  }
+
+  function loadEntries () {
+    var url = '/api/v1/treatments?find[eventType]=' + encodeURIComponent(EVENT_TYPE)
+      + '&find[created_at][$gte]=' + encodeURIComponent(rangeStartISO())
+      + '&count=1000';
+    return fetch(url, { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) { throw new Error('http ' + r.status); }
+        return r.json();
+      })
+      .then(function (list) {
+        state.entries = (Array.isArray(list) ? list : [])
+          .filter(function (e) { return e && e.eventType === EVENT_TYPE; })
+          .sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
+        render();
+      })
+      .catch(function () {
+        toast(t('loadError'));
+      });
+  }
+
+  function uploadPhoto (dataUrl) {
+    return fetch('/api/v1/mealimages/', {
+      method: 'POST'
+      , headers: authHeaders({ 'Content-Type': 'application/json' })
+      , body: JSON.stringify({ image: dataUrl, enteredBy: 'Carb Tracker' })
+    }).then(function (r) {
+      if (!r.ok) { throw new Error('upload failed'); }
+      return r.json();
+    }).then(function (j) {
+      if (!j || !j._id) { throw new Error('upload failed'); }
+      return String(j._id);
+    });
+  }
+
+  function deletePhoto (id) {
+    if (!id) { return Promise.resolve(); }
+    return fetch('/api/v1/mealimages/' + encodeURIComponent(id), {
+      method: 'DELETE', headers: authHeaders()
+    }).catch(function () { /* best effort */ });
+  }
+
+  /* ---------------- formatting ---------------- */
+  function isMmol () { return /mmol/i.test(state.units); }
+  function unitsLabel () { return isMmol() ? 'mmol/L' : 'mg/dL'; }
+  function round1 (v) { return Math.round(v * 10) / 10; }
+
+  function fmtDate (iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) { return { d: '?', t: '' }; }
+    var loc = lang === 'ar' ? 'ar-u-nu-latn' : undefined;
+    try {
+      return {
+        d: d.toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' })
+        , t: d.toLocaleTimeString(loc, { hour: 'numeric', minute: '2-digit' })
+      };
+    } catch (e) {
+      return { d: d.toLocaleDateString(), t: d.toLocaleTimeString() };
+    }
+  }
+
+  function toInputValue (d) {
+    function p (x) { return (x < 10 ? '0' : '') + x; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+      + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function bgClass (v) {
+    if (v === undefined || v === null || v === '' || isNaN(v)) { return 'none'; }
+    var th = state.thresholds;
+    if (v < th.bgLow) { return 'low2'; }
+    if (v < th.bgTargetBottom) { return 'low1'; }
+    if (v <= th.bgTargetTop) { return 'ok'; }
+    if (v <= th.bgHigh) { return 'high1'; }
+    return 'high2';
+  }
+
+  function esc (s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function num (v) {
+    if (v === undefined || v === null || v === '') { return null; }
+    var n = Number(v);
+    return isNaN(n) ? null : n;
+  }
+
+  /* ---------------- rendering ---------------- */
+  function applyLang () {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.title = t('title');
+    $('pageTitle').textContent = t('title');
+    $('langBtn').textContent = lang === 'ar' ? 'English' : 'عربي';
+    $('addMealText').textContent = t('addMeal');
+    $('formTitle').textContent = state.editingId ? t('editMeal') : t('addMeal');
+    $('l_time').textContent = t('mealTime');
+    $('nowBtn').textContent = t('now');
+    $('l_before').textContent = t('before');
+    $('l_after').textContent = t('after');
+    $('unitLabel1').textContent = '(' + unitsLabel() + ')';
+    $('unitLabel2').textContent = '(' + unitsLabel() + ')';
+    $('l_carbs').textContent = t('carbs');
+    $('l_factor').textContent = t('factor');
+    $('l_insulin').textContent = t('insulin');
+    $('l_optional1').textContent = t('optional');
+    $('l_optional2').textContent = t('optional');
+    $('l_notes').textContent = t('notes');
+    $('l_photo').textContent = t('photo');
+    $('photoBtnText').textContent = (state.photoDataUrl || (state.editingDoc && state.editingDoc.mealImageId && !state.photoRemoved)) ? t('changePhoto') : t('addPhoto');
+    $('saveBtn').textContent = t('save');
+    $('cancelBtn').textContent = t('cancel');
+    $('h_time').textContent = t('hTime');
+    $('h_before').textContent = t('hBefore');
+    $('h_after').textContent = t('hAfter');
+    $('h_carbs').textContent = t('hCarbs');
+    $('h_factor').textContent = t('hFactor');
+    $('h_insulin').textContent = t('hInsulin');
+    $('h_photo').textContent = t('hPhoto');
+    $('h_notes').textContent = t('hNotes');
+    $('empty').textContent = t('empty');
+    $('csvBtn').textContent = '⬇ ' + t('csv');
+    $('shareHint').textContent = t('shareHint');
+    $('readonlyText').textContent = t('readonly');
+    $('unlockBtn2').textContent = t('unlock');
+    $('u_title').textContent = t('unlock');
+    $('u_hint').textContent = t('unlockHint');
+    $('u_ok').textContent = t('ok');
+    $('u_cancel').textContent = t('cancel');
+    $('setupBanner').textContent = t('setupWarn');
+    renderChips();
+    render();
+  }
+
+  var RANGES = [
+    { days: 7, key: 'week' }
+    , { days: 14, key: 'twoWeeks' }
+    , { days: 30, key: 'month' }
+    , { days: 90, key: 'threeMonths' }
+    , { days: 0, key: 'all' }
+  ];
+
+  function renderChips () {
+    var wrap = $('chips');
+    wrap.innerHTML = '';
+    RANGES.forEach(function (r) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (state.rangeDays === r.days ? ' on' : '');
+      b.textContent = t(r.key);
+      b.onclick = function () {
+        state.rangeDays = r.days;
+        renderChips();
+        loadEntries();
+      };
+      wrap.appendChild(b);
+    });
+  }
+
+  function avg (values) {
+    var v = values.filter(function (x) { return x !== null; });
+    if (!v.length) { return null; }
+    return round1(v.reduce(function (a, b) { return a + b; }, 0) / v.length);
+  }
+
+  function renderStats () {
+    var wrap = $('stats');
+    var es = state.entries;
+    function stat (label, value) {
+      return '<div class="stat"><b>' + (value === null ? '—' : esc(value)) + '</b><span>' + esc(label) + '</span></div>';
+    }
+    wrap.innerHTML =
+      stat(t('meals'), es.length)
+      + stat(t('avgBefore'), avg(es.map(function (e) { return num(e.glucose); })))
+      + stat(t('avgAfter'), avg(es.map(function (e) { return num(e.bgAfter); })))
+      + stat(t('avgCarbs'), avg(es.map(function (e) { return num(e.carbs); })))
+      + stat(t('avgFactor'), avg(es.map(function (e) { return num(e.carbFactor); })));
+  }
+
+  function bgCell (v) {
+    var n = num(v);
+    return '<span class="bg ' + bgClass(n === null ? NaN : n) + '">' + (n === null ? '—' : esc(n)) + '</span>';
+  }
+
+  function render () {
+    renderStats();
+    var tbody = $('mealRows');
+    tbody.innerHTML = '';
+    $('empty').style.display = state.entries.length ? 'none' : 'block';
+
+    state.entries.forEach(function (e) {
+      var tr = document.createElement('tr');
+      var when = fmtDate(e.created_at);
+      var afterHtml;
+      if (num(e.bgAfter) === null && state.authenticated) {
+        afterHtml = '<button type="button" class="addafter" data-act="after" data-id="' + esc(e._id) + '">' + t('addAfter') + '</button>';
+      } else {
+        afterHtml = bgCell(e.bgAfter);
+      }
+      var photoHtml = e.mealImageId
+        ? '<img class="thumb" loading="lazy" alt="" data-act="photo" data-src="/api/v1/mealimages/' + esc(e.mealImageId) + '" src="/api/v1/mealimages/' + esc(e.mealImageId) + '">'
+        : '';
+      var actions = state.authenticated
+        ? '<button type="button" class="rowbtn" data-act="edit" data-id="' + esc(e._id) + '" aria-label="edit">✎</button>'
+          + ' <button type="button" class="rowbtn del" data-act="del" data-id="' + esc(e._id) + '" aria-label="delete">🗑</button>'
+        : '';
+
+      tr.innerHTML =
+        '<td data-label="' + esc(t('hTime')) + '"><span class="tstamp">' + esc(when.t) + '<small>' + esc(when.d) + '</small></span></td>'
+        + '<td data-label="' + esc(t('hBefore')) + '">' + bgCell(e.glucose) + '</td>'
+        + '<td data-label="' + esc(t('hAfter')) + '">' + afterHtml + '</td>'
+        + '<td data-label="' + esc(t('hCarbs')) + '"' + (num(e.carbs) === null ? ' class="hideempty"' : '') + '>' + (num(e.carbs) === null ? '—' : esc(num(e.carbs)) + ' g') + '</td>'
+        + '<td data-label="' + esc(t('hFactor')) + '"' + (num(e.carbFactor) === null ? ' class="hideempty"' : '') + '><b>' + (num(e.carbFactor) === null ? '—' : esc(num(e.carbFactor))) + '</b></td>'
+        + '<td data-label="' + esc(t('hInsulin')) + '"' + (num(e.insulin) === null ? ' class="hideempty"' : '') + '>' + (num(e.insulin) === null ? '—' : esc(num(e.insulin)) + ' U') + '</td>'
+        + '<td data-label="' + esc(t('hPhoto')) + '"' + (e.mealImageId ? '' : ' class="hideempty"') + '>' + photoHtml + '</td>'
+        + '<td data-label="' + esc(t('hNotes')) + '" class="notecell' + (e.notes ? '' : ' hideempty') + '">' + esc(e.notes || '') + '</td>'
+        + '<td class="actioncell">' + actions + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ---------------- form ---------------- */
+  function resetPhotoState () {
+    state.photoDataUrl = null;
+    state.photoRemoved = false;
+    $('photoInput').value = '';
+    $('photoPreviewWrap').style.display = 'none';
+    $('photoPreview').src = '';
+  }
+
+  function openForm (doc, focusAfter) {
+    state.editingId = doc ? doc._id : null;
+    state.editingDoc = doc || null;
+    resetPhotoState();
+
+    $('mealTime').value = toInputValue(doc ? new Date(doc.created_at) : new Date());
+    $('bgBefore').value = doc && num(doc.glucose) !== null ? num(doc.glucose) : '';
+    $('bgAfter').value = doc && num(doc.bgAfter) !== null ? num(doc.bgAfter) : '';
+    $('carbs').value = doc && num(doc.carbs) !== null ? num(doc.carbs) : '';
+    $('carbFactor').value = doc && num(doc.carbFactor) !== null ? num(doc.carbFactor) : '';
+    $('insulin').value = doc && num(doc.insulin) !== null ? num(doc.insulin) : '';
+    $('notes').value = doc && doc.notes ? doc.notes : '';
+
+    if (doc && doc.mealImageId) {
+      $('photoPreview').src = '/api/v1/mealimages/' + encodeURIComponent(doc.mealImageId);
+      $('photoPreviewWrap').style.display = 'block';
+    }
+
+    $('formTitle').textContent = doc ? t('editMeal') : t('addMeal');
+    $('photoBtnText').textContent = (doc && doc.mealImageId) ? t('changePhoto') : t('addPhoto');
+    $('formCard').style.display = 'block';
+    $('addMealBtn').style.display = 'none';
+    $('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (focusAfter) { $('bgAfter').focus(); }
+  }
+
+  function closeForm () {
+    state.editingId = null;
+    state.editingDoc = null;
+    resetPhotoState();
+    $('mealForm').reset();
+    $('formCard').style.display = 'none';
+    if (state.authenticated) { $('addMealBtn').style.display = 'block'; }
+  }
+
+  function compressPhoto (file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var MAX = 1280;
+          var w = img.naturalWidth, h = img.naturalHeight;
+          if (!w || !h) { throw new Error('bad image'); }
+          var scale = Math.min(1, MAX / Math.max(w, h));
+          var cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          var cx = canvas.getContext('2d');
+          cx.fillStyle = '#fff';
+          cx.fillRect(0, 0, cw, ch);
+          cx.drawImage(img, 0, 0, cw, ch);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          reject(e);
+        }
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('bad image'));
+      };
+      img.src = url;
+    });
+  }
+
+  function buildDoc (imageId) {
+    var when = new Date($('mealTime').value);
+    if (isNaN(when)) { when = new Date(); }
+
+    var doc = state.editingDoc ? JSON.parse(JSON.stringify(state.editingDoc)) : {};
+    doc.eventType = EVENT_TYPE;
+    doc.enteredBy = 'Carb Tracker';
+    doc.eventTime = when.toISOString();
+    delete doc.created_at; // the server rebuilds it from eventTime
+
+    function setOrDelete (key, value) {
+      if (value === null) { delete doc[key]; } else { doc[key] = value; }
+    }
+    setOrDelete('glucose', num($('bgBefore').value));
+    setOrDelete('bgAfter', num($('bgAfter').value));
+    setOrDelete('carbs', num($('carbs').value));
+    setOrDelete('carbFactor', num($('carbFactor').value));
+    setOrDelete('insulin', num($('insulin').value));
+    setOrDelete('notes', $('notes').value.trim() || null);
+    if (num($('bgBefore').value) !== null) {
+      doc.glucoseType = 'Finger';
+      doc.units = state.units;
+    } else {
+      delete doc.glucoseType;
+      delete doc.units;
+    }
+    setOrDelete('mealImageId', imageId || null);
+    return doc;
+  }
+
+  function saveMeal (ev) {
+    ev.preventDefault();
+    if (state.busy) { return; }
+    state.busy = true;
+    $('saveBtn').disabled = true;
+    toast(t('saving'), 15000);
+
+    var oldImageId = state.editingDoc && state.editingDoc.mealImageId;
+    var keepOld = oldImageId && !state.photoRemoved && !state.photoDataUrl;
+
+    var photoStep = state.photoDataUrl
+      ? uploadPhoto(state.photoDataUrl)
+      : Promise.resolve(keepOld ? oldImageId : null);
+
+    photoStep.then(function (imageId) {
+      var doc = buildDoc(imageId);
+      var isEdit = !!state.editingId;
+      if (isEdit) { doc._id = state.editingId; }
+      return fetch('/api/v1/treatments/', {
+        method: isEdit ? 'PUT' : 'POST'
+        , headers: authHeaders({ 'Content-Type': 'application/json' })
+        , body: JSON.stringify(doc)
+      }).then(function (r) {
+        if (!r.ok) { throw new Error('save failed ' + r.status); }
+        // clean up a replaced or removed photo
+        if (oldImageId && oldImageId !== imageId) { deletePhoto(oldImageId); }
+      });
+    }).then(function () {
+      toast(t('saved'));
+      closeForm();
+      loadEntries();
+    }).catch(function () {
+      toast(t('saveError'), 5000);
+    }).then(function () {
+      state.busy = false;
+      $('saveBtn').disabled = false;
+    });
+  }
+
+  function deleteMeal (id) {
+    var entry = null;
+    state.entries.forEach(function (e) { if (String(e._id) === String(id)) { entry = e; } });
+    if (!window.confirm(t('deleteAsk'))) { return; }
+    fetch('/api/v1/treatments/' + encodeURIComponent(id), {
+      method: 'DELETE', headers: authHeaders()
+    }).then(function (r) {
+      if (!r.ok) { throw new Error('delete failed'); }
+      if (entry && entry.mealImageId) { deletePhoto(entry.mealImageId); }
+      toast(t('deleted'));
+      loadEntries();
+    }).catch(function () {
+      toast(t('saveError'), 5000);
+    });
+  }
+
+  /* ---------------- CSV ---------------- */
+  function csvEscape (v) {
+    var s = String(v == null ? '' : v);
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function exportCsv () {
+    var rows = [['Date', 'Time', 'Sugar before (' + unitsLabel() + ')', 'Sugar after (' + unitsLabel() + ')'
+      , 'Carbs (g)', 'Carb factor', 'Insulin (units)', 'Notes', 'Photo']];
+    state.entries.slice().reverse().forEach(function (e) {
+      var d = new Date(e.created_at);
+      rows.push([
+        isNaN(d) ? '' : d.toLocaleDateString('en-GB')
+        , isNaN(d) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+        , num(e.glucose) === null ? '' : num(e.glucose)
+        , num(e.bgAfter) === null ? '' : num(e.bgAfter)
+        , num(e.carbs) === null ? '' : num(e.carbs)
+        , num(e.carbFactor) === null ? '' : num(e.carbFactor)
+        , num(e.insulin) === null ? '' : num(e.insulin)
+        , e.notes || ''
+        , e.mealImageId ? (location.origin + '/api/v1/mealimages/' + e.mealImageId) : ''
+      ]);
+    });
+    var csv = '\uFEFF' + rows.map(function (r) { return r.map(csvEscape).join(','); }).join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    var today = new Date();
+    a.download = 'carb-tracker-' + today.getFullYear()
+      + ('0' + (today.getMonth() + 1)).slice(-2)
+      + ('0' + today.getDate()).slice(-2) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 2000);
+  }
+
+  /* ---------------- small ui helpers ---------------- */
+  var toastTimer = null;
+  function toast (msg, ms) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    if (toastTimer) { clearTimeout(toastTimer); }
+    toastTimer = setTimeout(function () { el.style.display = 'none'; }, ms || 2200);
+  }
+
+  function openUnlock () {
+    $('u_err').textContent = '';
+    $('secretInput').value = '';
+    $('unlockOverlay').classList.add('open');
+    setTimeout(function () { $('secretInput').focus(); }, 60);
+  }
+
+  function tryUnlock () {
+    var secret = $('secretInput').value;
+    if (!secret || secret.length < 12) {
+      $('u_err').textContent = t('tooShort');
+      return;
+    }
+    $('u_ok').disabled = true;
+    sha1hex(secret).then(function (hash) {
+      return verifyAuth(hash).then(function (ok) {
+        $('u_ok').disabled = false;
+        if (ok) {
+          state.authHash = hash;
+          storeHash(hash);
+          $('unlockOverlay').classList.remove('open');
+          setAuthenticated(true);
+          toast(t('unlockedNow'));
+        } else {
+          $('u_err').textContent = t('wrongSecret');
+        }
+      });
+    });
+  }
+
+  /* ---------------- events ---------------- */
+  $('langBtn').onclick = function () {
+    lang = lang === 'ar' ? 'en' : 'ar';
+    try { localStorage.setItem('carbtracker-lang', lang); } catch (e) { /* ignore */ }
+    applyLang();
+  };
+
+  $('lockBtn').onclick = function () {
+    if (state.authenticated) {
+      state.authHash = null;
+      try { localStorage.removeItem('apisecrethash'); } catch (e) { /* ignore */ }
+      setAuthenticated(false);
+      toast(t('lockedNow'));
+    } else {
+      openUnlock();
+    }
+  };
+  $('unlockBtn2').onclick = openUnlock;
+  $('u_ok').onclick = tryUnlock;
+  $('u_cancel').onclick = function () { $('unlockOverlay').classList.remove('open'); };
+  $('secretInput').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); tryUnlock(); }
+  });
+
+  $('addMealBtn').onclick = function () { openForm(null); };
+  $('cancelBtn').onclick = closeForm;
+  $('mealForm').addEventListener('submit', saveMeal);
+  $('nowBtn').onclick = function () { $('mealTime').value = toInputValue(new Date()); };
+
+  $('photoBtn').onclick = function () { $('photoInput').click(); };
+  $('photoInput').addEventListener('change', function () {
+    var file = this.files && this.files[0];
+    if (!file) { return; }
+    compressPhoto(file).then(function (dataUrl) {
+      state.photoDataUrl = dataUrl;
+      state.photoRemoved = false;
+      $('photoPreview').src = dataUrl;
+      $('photoPreviewWrap').style.display = 'block';
+      $('photoBtnText').textContent = t('changePhoto');
+    }).catch(function () {
+      toast(t('photoError'), 4000);
+    });
+  });
+  $('removePhotoBtn').onclick = function () {
+    state.photoRemoved = true;
+    state.photoDataUrl = null;
+    $('photoInput').value = '';
+    $('photoPreviewWrap').style.display = 'none';
+    $('photoPreview').src = '';
+    $('photoBtnText').textContent = t('addPhoto');
+  };
+
+  $('mealRows').addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-act]');
+    if (!el) { return; }
+    var act = el.getAttribute('data-act');
+    if (act === 'photo') {
+      $('lightboxImg').src = el.getAttribute('data-src');
+      $('lightbox').classList.add('open');
+      return;
+    }
+    var id = el.getAttribute('data-id');
+    var entry = null;
+    state.entries.forEach(function (e) { if (String(e._id) === String(id)) { entry = e; } });
+    if (act === 'edit' && entry) { openForm(entry); }
+    if (act === 'after' && entry) { openForm(entry, true); }
+    if (act === 'del') { deleteMeal(id); }
+  });
+
+  $('lightbox').onclick = function () { $('lightbox').classList.remove('open'); };
+  $('csvBtn').onclick = exportCsv;
+
+  /* ---------------- start ---------------- */
+  applyLang();
+  loadStatus().then(function () {
+    applyLang(); // unit labels may have changed
+    if (!state.apiEnabled || !state.careportalEnabled) {
+      $('setupBanner').style.display = 'block';
+    }
+    var stored = getStoredHash();
+    if (stored) {
+      verifyAuth(stored).then(function (ok) {
+        if (ok) { state.authHash = stored; }
+        setAuthenticated(ok);
+      });
+    } else {
+      setAuthenticated(false);
+    }
+    loadEntries();
+  });
+
+})();
+</script>
+</body>
+</html>
