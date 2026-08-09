@@ -114,6 +114,48 @@ Meal photos are stored in the database in their own collection
 Photos are automatically resized on the phone before upload so they stay
 small (~100–300 KB each).
 
+## Automatic daily backup
+
+The server writes **one backup a day** by itself, into a Docker volume that
+updates never touch:
+
+```
+/data/backups/meals-YYYY-MM-DD.json    every meal, the last 30 days kept
+/data/backups/photos/<id>.jpg          every meal photo, copied once
+```
+
+Photos are copied only the first time they are seen, so the daily backup
+stays small no matter how many photos have piled up.
+
+To copy the backups onto your own computer:
+
+```bash
+docker compose cp nightscout:/data/backups ./carb-tracker-backups
+```
+
+Set `BACKUP_DIR` to change the location, or leave it empty to switch the
+automatic backup off.
+
+## Suggested carb factor
+
+The top of the page shows a **suggested carb factor** worked out from the
+last four days. For every meal that has a before reading, an after reading
+and carbs, it asks: how much insulin would have landed the sugar on target?
+
+```
+insulin that was missing = (sugar after the meal − target) ÷ correction step
+factor that would have worked = carbs ÷ (insulin given + insulin missing)
+```
+
+The suggestion is the middle value (median) of those, rounded to the
+nearest half. The **target** comes from the site settings (`bgTargetTop`,
+180 mg/dL by default) and the **correction step** is 1 unit per 40 mg/dL,
+which can be changed with the ✎ button next to the explanation.
+
+> This is a suggestion calculated from the patient's own readings, shown so
+> it can be discussed with the doctor. It is not a prescription, and the app
+> never changes the factor by itself.
+
 ## Where is the data stored?
 
 Meal entries are stored in the standard Nightscout **treatments**

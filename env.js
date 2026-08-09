@@ -28,6 +28,9 @@ function config ( ) {
   // require authorization for entering treatments
   env.treatments_auth = readENV('TREATMENTS_AUTH',false);
 
+  // where the automatic daily backup is written; empty turns the backup off
+  env.backup_dir = readENV('BACKUP_DIR', '');
+
   return env;
 }
 

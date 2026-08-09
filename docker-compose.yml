@@ -29,6 +29,10 @@ services:
       ENABLE: careportal
       TREATMENTS_AUTH: "true"
       DISPLAY_UNITS: ${DISPLAY_UNITS:-mg/dl}
+      # one backup a day, kept in a volume so updates never touch it
+      BACKUP_DIR: /data/backups
+    volumes:
+      - backups:/data/backups
 
   caddy:
     # optional automatic-HTTPS front door: docker compose --profile https up -d
@@ -45,3 +49,4 @@ services:
 volumes:
   mongodata:
   caddydata:
+  backups:

@@ -114,6 +114,24 @@
   .bg.high1 { background: #ffedd5; color: #c2410c; }
   .bg.high2 { background: #fde68a; color: #92400e; }
   .bg.none  { background: #f3f4f6; color: #9ca3af; font-weight: 400; }
+  .bg.miss  { background: #dc2626; color: #fff; font-weight: 700; }
+  .addafter.miss { border: 1.5px solid #dc2626; background: #dc2626; color: #fff; }
+  #gapBanner {
+    display: none; background: #fee2e2; border: 1.5px solid #dc2626; color: #991b1b;
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: 15px; line-height: 1.55;
+  }
+  #factorCard { display: none; }
+  #factorCard h2 { font-size: 16px; color: #0f5f57; margin-bottom: 10px; }
+  .fcrow { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .fcrow b { font-size: 34px; color: #0d9488; font-variant-numeric: tabular-nums; line-height: 1; }
+  .fcrow span { font-size: 15px; color: #4b5563; }
+  #fc_basis { font-size: 14px; color: #4b5563; line-height: 1.55; margin-bottom: 6px; }
+  #fc_method { font-size: 13px; color: #6b7280; line-height: 1.55; margin-bottom: 8px; }
+  #fc_method button {
+    border: 0; background: #f3f4f6; border-radius: 8px; padding: 5px 9px;
+    font-size: 13px; cursor: pointer; margin-inline-start: 6px;
+  }
+  #fc_note { font-size: 13px; color: #92400e; background: #fef3c7; border-radius: 10px; padding: 9px 11px; line-height: 1.55; }
   .thumb { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; cursor: pointer; display: block; }
   .rowbtn {
     border: 0; background: #f3f4f6; border-radius: 8px; padding: 8px 10px;
@@ -230,6 +248,16 @@
   <div class="banner info" id="readonlyBanner">
     <span id="readonlyText"></span>
     <button type="button" class="hbtn" id="unlockBtn2"></button>
+  </div>
+
+  <div id="gapBanner"></div>
+
+  <div class="card" id="factorCard">
+    <h2 id="fc_title">Suggested carb factor</h2>
+    <div class="fcrow"><b id="fc_value">—</b><span id="fc_current"></span></div>
+    <p id="fc_basis"></p>
+    <p id="fc_method"></p>
+    <p id="fc_note"></p>
   </div>
 
   <button type="button" id="addMealBtn">＋ <span id="addMealText">Add meal</span></button>
@@ -438,6 +466,20 @@
       , deleteFoodAsk: 'Remove this food from the list?'
       , foodNeedsName: 'Please write the name and the grams.'
       , noFoodFound: 'No food with that name. Use “Add a food” to create it.'
+      , gapTitle: 'Still to fill in:'
+      , gapBefore: 'without the before-meal reading'
+      , gapAfter: 'without the after-meal reading'
+      , gapCarbs: 'without the carbs'
+      , gapMeal: 'meal'
+      , gapMeals: 'meals'
+      , fcTitle: 'Suggested carb factor'
+      , fcCurrent: 'she is using {x}'
+      , fcBasis: 'Worked out from {n} meals in the last 4 days that have a before reading, an after reading and carbs.'
+      , fcMethod: 'Method: after-meal target {target} {units}, and 1 unit of insulin for every {step} {units} above it.'
+      , fcNote: 'This is only a suggestion calculated from her own readings. Ask the doctor before changing the factor.'
+      , fcNone: 'Add a few meals with the before reading, the after reading and the carbs, and a suggested factor will appear here.'
+      , fcEdit: 'Change'
+      , fcAskStep: 'One unit of insulin brings the sugar down by how much?'
     }
     , ar: {
       title: 'سجل الكارب'
@@ -495,6 +537,20 @@
       , deleteFoodAsk: 'حذف هذا الصنف من القائمة؟'
       , foodNeedsName: 'اكتبي الاسم وعدد الجرامات.'
       , noFoodFound: 'لا يوجد صنف بهذا الاسم. استخدمي «إضافة صنف» لإضافته.'
+      , gapTitle: 'ينقص إدخال:'
+      , gapBefore: 'بدون قراءة السكر قبل الأكل'
+      , gapAfter: 'بدون قراءة السكر بعد الأكل'
+      , gapCarbs: 'بدون الكربوهيدرات'
+      , gapMeal: 'وجبة'
+      , gapMeals: 'وجبات'
+      , fcTitle: 'معامل الكارب المقترح'
+      , fcCurrent: 'المستخدم حاليًا {x}'
+      , fcBasis: 'محسوب من {n} وجبات في آخر ٤ أيام فيها قراءة قبل الأكل وبعده والكربوهيدرات.'
+      , fcMethod: 'الطريقة: الهدف بعد الوجبة {target} {units}، ووحدة إنسولين واحدة لكل {step} {units} فوق الهدف.'
+      , fcNote: 'هذا اقتراح محسوب من قراءاتها فقط. راجعي الطبيب قبل تغيير المعامل.'
+      , fcNone: 'أدخلي بضع وجبات مع قراءة السكر قبل الأكل وبعده والكربوهيدرات ليظهر هنا المعامل المقترح.'
+      , fcEdit: 'تغيير'
+      , fcAskStep: 'كم تخفض وحدة الإنسولين الواحدة من السكر؟'
     }
   };
 
@@ -780,6 +836,8 @@
     , { id: 'milk', ar: 'حليب', arU: '1 كوب', en: 'Milk', enU: '1 cup', g: 12 }
     , { id: 'fruit', ar: 'فاكهة متوسطة (تفاح، برتقال…)', arU: '1 حبة', en: 'Medium fruit (apple, orange…)', enU: '1 piece', g: 15 }
     , { id: 'juice', ar: 'عصير', arU: '½ كوب', en: 'Juice', enU: '½ cup', g: 15 }
+    , { id: 'tomato', ar: 'طماطم', arU: '1 حبة متوسطة', en: 'Tomato', enU: '1 medium', g: 5 }
+    , { id: 'zucchini', ar: 'كوسا (كوسات)', arU: '1 كوب مطبوخ', en: 'Zucchini (courgette)', enU: '1 cup cooked', g: 7 }
   ];
 
   var picker = { items: [], q: '' };
@@ -827,6 +885,15 @@
       });
   }
 
+  function foodUsage () { return readJson('ct-food-used', {}); }
+
+  function markFoodsUsed (items) {
+    var used = foodUsage();
+    var now = Date.now();
+    items.forEach(function (i) { used[i.id] = now; });
+    writeJson('ct-food-used', used);
+  }
+
   function pickedTotal () {
     return picker.items.reduce(function (sum, i) { return sum + i.g * i.qty; }, 0);
   }
@@ -856,6 +923,10 @@
     var foods = allFoods().filter(function (f) {
       return !q || f.key.indexOf(q) >= 0;
     });
+    // whatever she used before comes first; sort is stable, so everything else
+    // keeps the order of the doctor's list
+    var used = foodUsage();
+    foods.sort(function (a, b) { return (used[b.id] || 0) - (used[a.id] || 0); });
     $('foodList').innerHTML = foods.length ? foods.map(function (f) {
       var chosen = findPicked(f.id);
       var qty = chosen ? chosen.qty : 0;
@@ -957,6 +1028,7 @@
   }
 
   function useFoodTotal () {
+    markFoodsUsed(picker.items);
     var total = round1(pickedTotal());
     $('carbs').value = total > 0 ? total : '';
     closeFoodSheet();
@@ -1001,6 +1073,110 @@
 
   function itemsSummary (doc) {
     return localizedItems(doc).map(function (i) { return i.name + ' ×' + i.qty; }).join(' · ');
+  }
+
+  /* ---------------- suggested carb factor ---------------- */
+  // How far one unit of insulin moves the sugar. The doctor's rule is one unit
+  // per 40 mg/dL; it can be changed if the doctor gives a different number.
+  function correctionStep () {
+    var saved = Number(readJson('ct-correction-mgdl', 0));
+    var mgdl = saved > 0 ? saved : 40;
+    return isMmol() ? round1(mgdl / 18.018) : mgdl;
+  }
+
+  function askCorrectionStep () {
+    var answer = window.prompt(t('fcAskStep') + ' (' + unitsLabel() + ')', String(correctionStep()));
+    if (answer === null) { return; }
+    var value = Number(String(answer).replace(',', '.'));
+    if (isNaN(value) || value <= 0) { return; }
+    writeJson('ct-correction-mgdl', isMmol() ? value * 18.018 : value);
+    render();
+  }
+
+  // Look at the last four days. For each meal we know the carbs, the insulin
+  // that went with them, and how high the sugar still was afterwards. Sugar
+  // left above target is insulin that was missing, so the factor that would
+  // have worked is carbs / (insulin given + insulin missing).
+  function factorAdvice () {
+    var target = state.thresholds.bgTargetTop;
+    var step = correctionStep();
+    var since = Date.now() - 4 * 86400000;
+    var factors = [];
+    var latestUsed = null;
+
+    state.entries.forEach(function (e) {
+      var when = new Date(e.created_at).getTime();
+      if (isNaN(when) || when < since) { return; }
+      var carbs = num(e.carbs);
+      var after = num(e.bgAfter);
+      var before = num(e.glucose);
+      var factorUsed = num(e.carbFactor);
+      var insulin = num(e.insulin);
+      if (factorUsed !== null && latestUsed === null) { latestUsed = factorUsed; }
+      if (carbs === null || carbs <= 0 || after === null || before === null) { return; }
+      var given = (insulin !== null && insulin > 0) ? insulin
+        : ((factorUsed !== null && factorUsed > 0) ? carbs / factorUsed : null);
+      if (given === null) { return; }
+      var ideal = given + (after - target) / step;
+      if (ideal <= 0) { return; }
+      factors.push(carbs / ideal);
+    });
+
+    if (!factors.length) { return { count: 0, target: target, step: step, current: latestUsed }; }
+    factors.sort(function (a, b) { return a - b; });
+    var mid = Math.floor(factors.length / 2);
+    var median = factors.length % 2 ? factors[mid] : (factors[mid - 1] + factors[mid]) / 2;
+    return {
+      value: Math.round(median * 2) / 2
+      , count: factors.length
+      , target: target
+      , step: step
+      , current: latestUsed
+    };
+  }
+
+  function renderFactorCard () {
+    var advice = factorAdvice();
+    $('factorCard').style.display = 'block';
+    $('fc_title').textContent = t('fcTitle');
+    $('fc_method').innerHTML = esc(t('fcMethod')
+      .replace('{target}', advice.target)
+      .replace('{step}', advice.step)
+      .replace(/\{units\}/g, unitsLabel()))
+      + ' <button type="button" id="fc_edit">✎ ' + esc(t('fcEdit')) + '</button>';
+    $('fc_edit').onclick = askCorrectionStep;
+
+    if (!advice.count) {
+      $('fc_value').textContent = '—';
+      $('fc_current').textContent = '';
+      $('fc_basis').textContent = t('fcNone');
+      $('fc_note').style.display = 'none';
+      return;
+    }
+    $('fc_value').textContent = advice.value;
+    $('fc_current').textContent = advice.current !== null ? t('fcCurrent').replace('{x}', advice.current) : '';
+    $('fc_basis').textContent = t('fcBasis').replace('{n}', advice.count);
+    $('fc_note').textContent = t('fcNote');
+    $('fc_note').style.display = 'block';
+  }
+
+  function renderGaps () {
+    var missBefore = 0, missAfter = 0, missCarbs = 0;
+    state.entries.forEach(function (e) {
+      if (num(e.glucose) === null) { missBefore++; }
+      if (num(e.bgAfter) === null) { missAfter++; }
+      if (num(e.carbs) === null) { missCarbs++; }
+    });
+    function part (count, key) {
+      return count + ' ' + t(count === 1 ? 'gapMeal' : 'gapMeals') + ' ' + t(key);
+    }
+    var parts = [];
+    if (missBefore) { parts.push(part(missBefore, 'gapBefore')); }
+    if (missAfter) { parts.push(part(missAfter, 'gapAfter')); }
+    if (missCarbs) { parts.push(part(missCarbs, 'gapCarbs')); }
+    var banner = $('gapBanner');
+    banner.style.display = parts.length ? 'block' : 'none';
+    banner.textContent = parts.length ? '⚠️ ' + t('gapTitle') + ' ' + parts.join(' · ') : '';
   }
 
   /* ---------------- rendering ---------------- */
@@ -1125,10 +1301,13 @@
 
   function bgCell (v) {
     var n = num(v);
-    return '<span class="bg ' + bgClass(n === null ? NaN : n) + '">' + (n === null ? '—' : esc(n)) + '</span>';
+    if (n === null) { return '<span class="bg miss">—</span>'; }
+    return '<span class="bg ' + bgClass(n) + '">' + esc(n) + '</span>';
   }
 
   function render () {
+    renderGaps();
+    renderFactorCard();
     renderStats();
     var tbody = $('mealRows');
     tbody.innerHTML = '';
@@ -1139,7 +1318,7 @@
       var when = fmtDate(e.created_at);
       var afterHtml;
       if (num(e.bgAfter) === null && state.authenticated) {
-        afterHtml = '<button type="button" class="addafter" data-act="after" data-id="' + esc(e._id) + '">' + t('addAfter') + '</button>';
+        afterHtml = '<button type="button" class="addafter miss" data-act="after" data-id="' + esc(e._id) + '">' + t('addAfter') + '</button>';
       } else {
         afterHtml = bgCell(e.bgAfter);
       }
@@ -1158,7 +1337,7 @@
         '<td data-label="' + esc(t('hTime')) + '"><span class="tstamp">' + esc(when.t) + '<small>' + esc(when.d) + '</small></span></td>'
         + '<td data-label="' + esc(t('hBefore')) + '">' + bgCell(e.glucose) + '</td>'
         + '<td data-label="' + esc(t('hAfter')) + '">' + afterHtml + '</td>'
-        + '<td data-label="' + esc(t('hCarbs')) + '"' + (num(e.carbs) === null ? ' class="hideempty"' : '') + '><span>' + (num(e.carbs) === null ? '—' : esc(num(e.carbs)) + ' ' + esc(t('gram')))
+        + '<td data-label="' + esc(t('hCarbs')) + '"><span>' + (num(e.carbs) === null ? '<span class="bg miss">—</span>' : esc(num(e.carbs)) + ' ' + esc(t('gram')))
           + (itemsSummary(e) ? '<small class="carbdetail">' + esc(itemsSummary(e)) + '</small>' : '') + '</span></td>'
         + '<td data-label="' + esc(t('hFactor')) + '"' + (num(e.carbFactor) === null ? ' class="hideempty"' : '') + '><b>' + (num(e.carbFactor) === null ? '—' : esc(num(e.carbFactor))) + '</b></td>'
         + '<td data-label="' + esc(t('hInsulin')) + '"' + (num(e.insulin) === null ? ' class="hideempty"' : '') + '>' + (num(e.insulin) === null ? '—' : esc(num(e.insulin)) + ' U') + '</td>'
