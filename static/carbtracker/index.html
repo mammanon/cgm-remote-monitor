@@ -1407,18 +1407,20 @@
       , link
     ];
     if (code) {
-      lines.push('للكتابة والرد: افتح أي وجبة ← «💬 ملاحظات الطبيب» ← «أنا الطبيب» ← أدخل الرمز التالي مرة واحدة:');
+      lines.push('للكتابة والرد:');
+      lines.push('افتح أي وجبة ← «💬 ملاحظات الطبيب» ← أدخل الرمز التالي مرة واحدة');
+      lines.push('');
       lines.push('الرمز: ' + code);
-      lines.push('هذا الرمز للتعليق فقط — لا يستطيع تعديل أي بيانات.');
     }
+    lines.push('');
     lines.push('');
     lines.push('📋 Carb Tracker — diabetes meal log');
     lines.push('For the doctor: open the link to see the meals, readings and photos:');
     lines.push(link);
     if (code) {
-      lines.push('To reply: open any meal → tap "💬 Doctor notes" → "I am the doctor" → enter this code once:');
+      lines.push('To reply: open any meal → tap "💬 Doctor notes" → enter this code once:');
+      lines.push('');
       lines.push('Code: ' + code);
-      lines.push('The code can only add comments — it cannot change any data.');
     }
     return lines.join('\n');
   }
