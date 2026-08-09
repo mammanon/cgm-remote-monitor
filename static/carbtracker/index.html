@@ -18,7 +18,7 @@
     background: #f1f5f4;
     color: #1f2937;
     min-height: 100vh;
-    padding-bottom: 40px;
+    padding-bottom: 96px;   /* room for the floating chat button */
   }
   header {
     position: sticky; top: 0; z-index: 20;
@@ -216,6 +216,26 @@
     padding: 8px 10px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 38px;
   }
   .chatbtn.has { background: #0d9488; color: #fff; }
+  .chatbtn.unread { background: #dc2626; color: #fff; }
+  #chatFab {
+    position: fixed; z-index: 40;
+    inset-inline-end: 14px; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+    display: inline-flex; align-items: center; gap: 9px;
+    background: #0d9488; color: #fff; border: 0; cursor: pointer;
+    border-radius: 999px; padding: 13px 18px; font-size: 15px; font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0,0,0,.28);
+  }
+  #chatFab:active { background: #0b7d72; }
+  #fabCount {
+    display: none; align-items: center; justify-content: center;
+    background: #dc2626; color: #fff; border-radius: 999px;
+    min-width: 23px; height: 23px; padding: 0 6px; font-size: 13px; font-weight: 700;
+  }
+  #chatFab.unread #fabCount { display: inline-flex; }
+  #chatNudge {
+    background: #fef3c7; color: #92400e; border-radius: 10px; padding: 9px 11px;
+    font-size: 13px; line-height: 1.55; align-self: stretch; text-align: center;
+  }
   #chatSheet { align-items: stretch; justify-content: center; padding: 0; }
   .chatbody {
     flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #e9efec;
@@ -283,7 +303,6 @@
 
 <header>
   <h1 id="pageTitle">Carb Tracker</h1>
-  <button type="button" class="hbtn" id="notesBtn" aria-label="notes">💬</button>
   <button type="button" class="hbtn" id="langBtn">عربي</button>
   <button type="button" class="hbtn" id="lockBtn">🔓</button>
 </header>
@@ -411,6 +430,10 @@
     </div>
   </div>
 </div>
+
+<button type="button" id="chatFab">
+  <span>💬</span><span id="fabText">Chat with the doctor</span><span id="fabCount">0</span>
+</button>
 
 <div class="overlay" id="chatSheet">
   <div class="sheet">
@@ -558,6 +581,8 @@
       , chatLockedHint: 'Only Amani and the doctor can write here.'
       , doctorNotSet: 'The doctor code has not been set up on this website yet.'
       , deleteCommentAsk: 'Delete this comment?'
+      , fabText: 'Chat with the doctor'
+      , unreadElsewhere: '{n} new comments on meals — look for the red 💬 buttons below.'
     }
     , ar: {
       title: 'سجل الكارب'
@@ -644,6 +669,8 @@
       , chatLockedHint: 'الكتابة هنا لأماني والطبيب فقط.'
       , doctorNotSet: 'رمز الطبيب غير مفعّل في هذا الموقع بعد.'
       , deleteCommentAsk: 'حذف هذا التعليق؟'
+      , fabText: 'محادثة مع الطبيب'
+      , unreadElsewhere: '{n} تعليقات جديدة على الوجبات — ابحثي عن أزرار 💬 الحمراء بالأسفل.'
     }
   };
 
@@ -668,6 +695,7 @@
     , editingDoc: null
     , comments: []
     , chatMeal: null
+    , unreadElsewhere: 0
     , doctorHash: null
     , isDoctor: false
     , doctorEnabled: false
@@ -936,9 +964,20 @@
     , { id: 'sugar-tbsp', ar: 'سكر', arU: '1 ملعقة طعام', en: 'Sugar', enU: '1 tablespoon', g: 12 }
     , { id: 'milk', ar: 'حليب', arU: '1 كوب', en: 'Milk', enU: '1 cup', g: 12 }
     , { id: 'fruit', ar: 'فاكهة متوسطة (تفاح، برتقال…)', arU: '1 حبة', en: 'Medium fruit (apple, orange…)', enU: '1 piece', g: 15 }
+    , { id: 'banana', ar: 'موز', arU: '1 حبة صغيرة', en: 'Banana', enU: '1 small', g: 15 }
+    , { id: 'grapes', ar: 'عنب', arU: '15 حبة', en: 'Grapes', enU: '15 grapes', g: 15 }
+    , { id: 'watermelon', ar: 'بطيخ', arU: '1 كوب مكعبات', en: 'Watermelon', enU: '1 cup cubes', g: 15 }
+    , { id: 'mango', ar: 'مانجو', arU: '½ كوب', en: 'Mango', enU: '½ cup', g: 15 }
+    , { id: 'date-small', ar: 'تمرة صغيرة (خلاص/صقعي)', arU: '1 حبة', en: 'Small date', enU: '1 date', g: 7 }
+    , { id: 'date-large', ar: 'تمرة كبيرة (مجدول)', arU: '1 حبة', en: 'Large date (Medjool)', enU: '1 date', g: 18 }
     , { id: 'juice', ar: 'عصير', arU: '½ كوب', en: 'Juice', enU: '½ cup', g: 15 }
     , { id: 'malt', ar: 'شراب شعير (هولستن)', arU: '100 مل', en: 'Malt drink (Holsten)', enU: '100 ml', g: 10 }
     , { id: 'dietsoda', ar: 'ببسي دايت (مشروب غازي بدون سكر)', arU: '1 علبة', en: 'Diet soda (Diet Pepsi)', enU: '1 can', g: 0 }
+    , { id: 'soda', ar: 'مشروب غازي عادي (ببسي/كولا)', arU: '1 علبة (330 مل)', en: 'Regular soda (Pepsi/Cola)', enU: '1 can (330 ml)', g: 35 }
+    , { id: 'yogurt', ar: 'زبادي أو لبن سادة', arU: '⅔ كوب (170 جم)', en: 'Plain yogurt', enU: '⅔ cup (170 g)', g: 12 }
+    , { id: 'peas', ar: 'بازلاء', arU: '½ كوب', en: 'Peas', enU: '½ cup', g: 15 }
+    , { id: 'cake', ar: 'كيك سادة', arU: 'مربع 5 سم', en: 'Plain cake', enU: '5 cm square', g: 15 }
+    , { id: 'icecream', ar: 'آيس كريم', arU: '½ كوب', en: 'Ice cream', enU: '½ cup', g: 15 }
     , { id: 'tomato', ar: 'طماطم', arU: '1 حبة متوسطة', en: 'Tomato', enU: '1 medium', g: 5 }
     , { id: 'zucchini', ar: 'كوسا (كوسات)', arU: '1 كوب مطبوخ', en: 'Zucchini (courgette)', enU: '1 cup cooked', g: 7 }
   ];
@@ -1194,6 +1233,29 @@
     return author === 'doctor' ? t('doctorName') : t('patientName');
   }
 
+  // What each side has already seen is kept per person on their own phone.
+  function readKey () { return 'ct-read-' + (myRole() || 'guest'); }
+
+  function markThreadRead (threadId) {
+    var map = readJson(readKey(), {});
+    map[threadId] = new Date().toISOString();
+    writeJson(readKey(), map);
+  }
+
+  function unreadFor (threadId) {
+    var role = myRole();
+    var seenUpTo = readJson(readKey(), {})[threadId] || '';
+    return commentsFor(threadId).filter(function (c) {
+      return c.author !== role && String(c.created_at) > seenUpTo;
+    }).length;
+  }
+
+  function totalUnread () {
+    var threads = { };
+    state.comments.forEach(function (c) { threads[c.meal] = true; });
+    return Object.keys(threads).reduce(function (sum, id) { return sum + unreadFor(id); }, 0);
+  }
+
   function loadComments () {
     return fetch('/api/v1/mealcomments?t=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : []; })
@@ -1209,7 +1271,10 @@
     var role = myRole();
     var body = $('chatBody');
 
-    body.innerHTML = list.length ? list.map(function (c) {
+    var nudge = (state.chatMeal === 'general' && state.unreadElsewhere > 0)
+      ? '<p id="chatNudge">' + esc(t('unreadElsewhere').replace('{n}', state.unreadElsewhere)) + '</p>'
+      : '';
+    body.innerHTML = nudge + (list.length ? list.map(function (c) {
       var own = role && c.author === role;
       var when = fmtDate(c.created_at);
       return '<div class="bub ' + (own ? 'own' : 'other') + '">'
@@ -1218,7 +1283,7 @@
         + esc(c.text).replace(/\n/g, '<br>')
         + '<span class="when">' + esc(when.t) + ' · ' + esc(when.d) + '</span>'
         + '</div>';
-    }).join('') : '<p id="chatEmpty">' + esc(t('noComments')) + '</p>';
+    }).join('') : '<p id="chatEmpty">' + esc(t('noComments')) + '</p>');
     body.scrollTop = body.scrollHeight;
 
     var canWrite = !!role;
@@ -1232,10 +1297,15 @@
 
   function openChat (mealId, title) {
     state.chatMeal = mealId;
+    state.unreadElsewhere = totalUnread() - unreadFor(mealId);
     $('chat_title').textContent = title;
     renderChat();
     $('chatSheet').classList.add('open');
-    loadComments().then(renderChat);
+    loadComments().then(function () {
+      renderChat();
+      markThreadRead(mealId);
+      render();
+    });
   }
 
   function sendComment () {
@@ -1253,7 +1323,11 @@
     }).then(function (r) {
       if (!r.ok) { throw new Error('post failed ' + r.status); }
       $('chatInput').value = '';
-      return loadComments().then(renderChat);
+      return loadComments().then(function () {
+        renderChat();
+        markThreadRead(state.chatMeal);
+        render();
+      });
     }).catch(function () {
       toast(t('saveError'), 4000);
     }).then(function () {
@@ -1295,6 +1369,7 @@
         state.doctorHash = hash;
         state.isDoctor = true;
         try { localStorage.setItem('ct-doctorcode', hash); } catch (e) { /* private mode */ }
+        render();
         renderChat();
         toast(t('doctorReady'));
       });
@@ -1533,8 +1608,10 @@
   }
 
   function render () {
-    var generalCount = commentsFor('general').length;
-    $('notesBtn').textContent = generalCount ? '💬 ' + generalCount : '💬';
+    var newMessages = totalUnread();
+    $('fabText').textContent = t('fabText');
+    $('fabCount').textContent = newMessages;
+    $('chatFab').className = newMessages ? 'unread' : '';
     renderGaps();
     renderFactorCard();
     renderStats();
@@ -1558,7 +1635,8 @@
         }).join('') + '</span>'
         : '';
       var chatCount = commentsFor(e._id).length;
-      var actions = '<button type="button" class="chatbtn' + (chatCount ? ' has' : '') + '" data-act="chat" data-id="' + esc(e._id) + '">💬'
+      var chatNew = unreadFor(e._id);
+      var actions = '<button type="button" class="chatbtn' + (chatNew ? ' unread' : (chatCount ? ' has' : '')) + '" data-act="chat" data-id="' + esc(e._id) + '">💬'
           + (chatCount ? ' ' + chatCount : '') + '</button>'
         + (state.authenticated
           ? ' <button type="button" class="rowbtn" data-act="edit" data-id="' + esc(e._id) + '" aria-label="edit">✎</button>'
@@ -1951,7 +2029,7 @@
   $('nfSave').onclick = saveNewFood;
   $('nfCancel').onclick = function () { $('newFoodCard').style.display = 'none'; };
 
-  $('notesBtn').onclick = function () { openChat('general', t('generalNotes')); };
+  $('chatFab').onclick = function () { openChat('general', t('generalNotes')); };
   $('chatCloseBtn').onclick = function () { $('chatSheet').classList.remove('open'); };
   $('chatSend').onclick = sendComment;
   $('doctorBtn').onclick = askDoctorCode;
@@ -1994,6 +2072,7 @@
       useDoctorCode(storedCode).then(function (ok) {
         state.isDoctor = ok;
         if (ok) { state.doctorHash = storedCode; }
+        render();
         if (state.chatMeal !== null) { renderChat(); }
       });
     }
