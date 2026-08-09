@@ -78,8 +78,10 @@ function setDoctorCode() {
     if (raw.length < 8) {
       throw new Error('DOCTOR_CODE should be at least 8 characters');
     }
+    // Phone keyboards capitalise the first letter on their own, so the code
+    // is compared without caring about capitals: doctor123 = Doctor123.
     var shasum = crypto.createHash('sha1');
-    shasum.update(raw);
+    shasum.update(raw.toLowerCase());
     env.doctor_code = shasum.digest('hex');
   }
 }

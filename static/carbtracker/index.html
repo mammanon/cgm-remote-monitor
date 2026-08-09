@@ -147,6 +147,11 @@
     display: block; margin: 4px auto 6px; border: 1.5px solid #0d9488; background: #fff; color: #0d9488;
     border-radius: 12px; padding: 12px 22px; font-size: 16px; font-weight: 600; cursor: pointer;
   }
+  #shareBtn {
+    display: block; margin: 12px auto 10px; border: 0; background: #0d9488; color: #fff;
+    border-radius: 12px; padding: 13px 24px; font-size: 16px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(13,148,136,.3);
+  }
   .sharehint { text-align: center; color: #6b7280; font-size: 13px; line-height: 1.5; padding: 0 10px; }
   /* phone: table becomes cards */
   @media (max-width: 700px) {
@@ -414,6 +419,7 @@
     <div id="empty"></div>
   </div>
 
+  <button type="button" id="shareBtn">📤 Share</button>
   <button type="button" id="csvBtn">⬇ CSV</button>
   <p class="sharehint" id="shareHint"></p>
 </main>
@@ -565,6 +571,10 @@
       , fcNote: 'This is only a suggestion calculated from her own readings. Ask the doctor before changing the factor.'
       , fcNone: 'Add a few meals with the before reading, the after reading and the carbs, and a suggested factor will appear here.'
       , mealChatLabel: 'Doctor notes'
+      , shareDr: 'Share with the doctor'
+      , shareAskCode: 'The doctor code, to include it in the message (leave empty to share the link only):'
+      , shareCopied: 'Message copied — paste it in WhatsApp.'
+      , shareCopyManual: 'Copy this message:'
       , fcEditTarget: 'Target'
       , fcEditStep: 'Correction'
       , fcAskTarget: 'The goal for the sugar after the meal?'
@@ -656,6 +666,10 @@
       , fcNote: 'هذا اقتراح محسوب من قراءاتها فقط. راجعي الطبيب قبل تغيير المعامل.'
       , fcNone: 'أدخلي بضع وجبات مع قراءة السكر قبل الأكل وبعده والكربوهيدرات ليظهر هنا المعامل المقترح.'
       , mealChatLabel: 'ملاحظات الطبيب'
+      , shareDr: 'مشاركة مع الطبيب'
+      , shareAskCode: 'رمز الطبيب ليُضاف إلى الرسالة (اتركيه فارغًا لمشاركة الرابط فقط):'
+      , shareCopied: 'نُسخت الرسالة — الصقيها في واتساب.'
+      , shareCopyManual: 'انسخي هذه الرسالة:'
       , fcEditTarget: 'الهدف'
       , fcEditStep: 'التصحيح'
       , fcAskTarget: 'كم الهدف للسكر بعد الوجبة؟'
@@ -1366,7 +1380,7 @@
       window.alert(t('codeTooShort'));
       return;
     }
-    sha1hex(code).then(function (hash) {
+    sha1hex(code.trim().toLowerCase()).then(function (hash) {
       return useDoctorCode(hash).then(function (ok) {
         if (!ok) {
           window.alert(t('wrongCode'));
@@ -1378,6 +1392,67 @@
         render();
         renderChat();
         toast(t('doctorReady'));
+      });
+    });
+  }
+
+  /* ---------------- sharing with the doctor ---------------- */
+  // One ready message, Arabic then English, with the link and (when known)
+  // the doctor code — so a new doctor can be set up straight from her phone.
+  function shareDoctorText (code) {
+    var link = location.origin + '/carbtracker/';
+    var lines = [
+      '📋 سجل الكارب — متابعة السكري'
+      , 'للطبيب: افتح الرابط لمشاهدة الوجبات والقراءات والصور:'
+      , link
+    ];
+    if (code) {
+      lines.push('للكتابة والرد: افتح أي وجبة ← «💬 ملاحظات الطبيب» ← «أنا الطبيب» ← أدخل الرمز التالي مرة واحدة:');
+      lines.push('الرمز: ' + code);
+      lines.push('هذا الرمز للتعليق فقط — لا يستطيع تعديل أي بيانات.');
+    }
+    lines.push('');
+    lines.push('📋 Carb Tracker — diabetes meal log');
+    lines.push('For the doctor: open the link to see the meals, readings and photos:');
+    lines.push(link);
+    if (code) {
+      lines.push('To reply: open any meal → tap "💬 Doctor notes" → "I am the doctor" → enter this code once:');
+      lines.push('Code: ' + code);
+      lines.push('The code can only add comments — it cannot change any data.');
+    }
+    return lines.join('\n');
+  }
+
+  function shareWithDoctor () {
+    function finish (code) {
+      var text = shareDoctorText(code);
+      if (navigator.share) {
+        navigator.share({ text: text }).catch(function () { /* she closed the sheet */ });
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          toast(t('shareCopied'), 4000);
+        }).catch(function () { window.prompt(t('shareCopyManual'), text); });
+      } else {
+        window.prompt(t('shareCopyManual'), text);
+      }
+    }
+    if (!state.doctorEnabled) { return finish(null); }
+    var saved = null;
+    try { saved = localStorage.getItem('ct-doctor-plain'); } catch (e) { /* ignore */ }
+    if (saved) { return finish(saved); }
+    var code = window.prompt(t('shareAskCode'));
+    if (code === null) { return; }
+    code = code.trim().toLowerCase();
+    if (!code) { return finish(null); }
+    sha1hex(code).then(function (hash) {
+      return useDoctorCode(hash).then(function (ok) {
+        if (!ok) {
+          window.alert(t('wrongCode'));
+          return;
+        }
+        // remembered, so sharing with the next doctor is one tap
+        try { localStorage.setItem('ct-doctor-plain', code); } catch (e) { /* ignore */ }
+        finish(code);
       });
     });
   }
@@ -1540,6 +1615,7 @@
     $('h_photo').textContent = t('hPhoto');
     $('h_notes').textContent = t('hNotes');
     $('empty').textContent = t('empty');
+    $('shareBtn').textContent = '📤 ' + t('shareDr');
     $('csvBtn').textContent = '⬇ ' + t('csv');
     $('shareHint').textContent = t('shareHint');
     $('readonlyText').textContent = t('readonly');
@@ -2070,6 +2146,7 @@
   });
 
   $('lightbox').onclick = function () { $('lightbox').classList.remove('open'); };
+  $('shareBtn').onclick = shareWithDoctor;
   $('csvBtn').onclick = exportCsv;
 
   /* ---------------- start ---------------- */
