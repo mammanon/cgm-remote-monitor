@@ -839,6 +839,7 @@
     , { id: 'fruit', ar: 'فاكهة متوسطة (تفاح، برتقال…)', arU: '1 حبة', en: 'Medium fruit (apple, orange…)', enU: '1 piece', g: 15 }
     , { id: 'juice', ar: 'عصير', arU: '½ كوب', en: 'Juice', enU: '½ cup', g: 15 }
     , { id: 'malt', ar: 'شراب شعير (هولستن)', arU: '100 مل', en: 'Malt drink (Holsten)', enU: '100 ml', g: 10 }
+    , { id: 'dietsoda', ar: 'ببسي دايت (مشروب غازي بدون سكر)', arU: '1 علبة', en: 'Diet soda (Diet Pepsi)', enU: '1 can', g: 0 }
     , { id: 'tomato', ar: 'طماطم', arU: '1 حبة متوسطة', en: 'Tomato', enU: '1 medium', g: 5 }
     , { id: 'zucchini', ar: 'كوسا (كوسات)', arU: '1 كوب مطبوخ', en: 'Zucchini (courgette)', enU: '1 cup cooked', g: 7 }
   ];
@@ -1033,7 +1034,8 @@
   function useFoodTotal () {
     markFoodsUsed(picker.items);
     var total = round1(pickedTotal());
-    $('carbs').value = total > 0 ? total : '';
+    // a meal of only zero-carb foods really is 0 g, so write the 0
+    $('carbs').value = picker.items.length ? total : '';
     closeFoodSheet();
     renderPicked();
   }
@@ -1168,7 +1170,7 @@
     state.entries.forEach(function (e) {
       if (num(e.glucose) === null) { missBefore++; }
       if (num(e.bgAfter) === null) { missAfter++; }
-      if (num(e.carbs) === null) { missCarbs++; }
+      if (num(e.carbs) === null && !(Array.isArray(e.carbItems) && e.carbItems.length)) { missCarbs++; }
     });
     function part (count, key) {
       return count + ' ' + t(count === 1 ? 'gapMeal' : 'gapMeals') + ' ' + t(key);
@@ -1340,7 +1342,8 @@
         '<td data-label="' + esc(t('hTime')) + '"><span class="tstamp">' + esc(when.t) + '<small>' + esc(when.d) + '</small></span></td>'
         + '<td data-label="' + esc(t('hBefore')) + '">' + bgCell(e.glucose) + '</td>'
         + '<td data-label="' + esc(t('hAfter')) + '">' + afterHtml + '</td>'
-        + '<td data-label="' + esc(t('hCarbs')) + '"><span>' + (num(e.carbs) === null ? '<span class="bg miss">—</span>' : esc(num(e.carbs)) + ' ' + esc(t('gram')))
+        + '<td data-label="' + esc(t('hCarbs')) + '"><span>' + (num(e.carbs) !== null ? esc(num(e.carbs)) + ' ' + esc(t('gram'))
+          : (itemsSummary(e) ? '0 ' + esc(t('gram')) : '<span class="bg miss">—</span>'))
           + (itemsSummary(e) ? '<small class="carbdetail">' + esc(itemsSummary(e)) + '</small>' : '') + '</span></td>'
         + '<td data-label="' + esc(t('hFactor')) + '"' + (num(e.carbFactor) === null ? ' class="hideempty"' : '') + '><b>' + (num(e.carbFactor) === null ? '—' : esc(num(e.carbFactor))) + '</b></td>'
         + '<td data-label="' + esc(t('hInsulin')) + '"' + (num(e.insulin) === null ? ' class="hideempty"' : '') + '>' + (num(e.insulin) === null ? '—' : esc(num(e.insulin)) + ' U') + '</td>'
