@@ -31,6 +31,9 @@ function config ( ) {
   // where the automatic daily backup is written; empty turns the backup off
   env.backup_dir = readENV('BACKUP_DIR', '');
 
+  // short code that lets the doctor write comments without the full secret
+  setDoctorCode();
+
   return env;
 }
 
@@ -63,6 +66,21 @@ function setAPISecret() {
     var shasum = crypto.createHash('sha1');
     shasum.update(readENV('API_SECRET'));
     env.api_secret = shasum.digest('hex');
+  }
+}
+
+// A separate, shorter key for the doctor. It can only add comments, never
+// change a meal, so it is safe to hand out at the clinic.
+function setDoctorCode() {
+  var raw = readENV('DOCTOR_CODE');
+  env.doctor_code = null;
+  if (raw && raw.length > 0) {
+    if (raw.length < 8) {
+      throw new Error('DOCTOR_CODE should be at least 8 characters');
+    }
+    var shasum = crypto.createHash('sha1');
+    shasum.update(raw);
+    env.doctor_code = shasum.digest('hex');
   }
 }
 
@@ -102,6 +120,7 @@ function setMongo() {
   }
   env.treatments_collection = readENV('MONGO_TREATMENTS_COLLECTION', 'treatments');
   env.mealimages_collection = readENV('MONGO_MEALIMAGES_COLLECTION', 'mealimages');
+  env.mealcomments_collection = readENV('MONGO_MEALCOMMENTS_COLLECTION', 'mealcomments');
   env.profile_collection = readENV('MONGO_PROFILE_COLLECTION', 'profile');
   env.devicestatus_collection = readENV('MONGO_DEVICESTATUS_COLLECTION', 'devicestatus');
 

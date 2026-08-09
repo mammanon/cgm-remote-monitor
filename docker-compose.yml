@@ -29,6 +29,8 @@ services:
       ENABLE: careportal
       TREATMENTS_AUTH: "true"
       DISPLAY_UNITS: ${DISPLAY_UNITS:-mg/dl}
+      # short code the doctor uses to write comments (optional)
+      DOCTOR_CODE: ${DOCTOR_CODE:-}
       # one backup a day, kept in a volume so updates never touch it
       BACKUP_DIR: /data/backups
     volumes:

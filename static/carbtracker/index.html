@@ -210,6 +210,50 @@
     border-radius: 10px; margin-bottom: 8px; min-height: 44px; appearance: none; -webkit-appearance: none;
   }
   .carbdetail { display: block; color: #6b7280; font-size: 12px; line-height: 1.4; margin-top: 2px; }
+  /* comments between the patient and the doctor */
+  .chatbtn {
+    border: 0; background: #e0f2f1; color: #0f5f57; border-radius: 8px;
+    padding: 8px 10px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 38px;
+  }
+  .chatbtn.has { background: #0d9488; color: #fff; }
+  #chatSheet { align-items: stretch; justify-content: center; padding: 0; }
+  .chatbody {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #e9efec;
+    padding: 14px 12px; display: flex; flex-direction: column; gap: 9px;
+  }
+  .bub {
+    max-width: 80%; padding: 8px 11px 6px; border-radius: 12px; font-size: 15px; line-height: 1.5;
+    box-shadow: 0 1px 1px rgba(0,0,0,.09); position: relative; overflow-wrap: break-word;
+  }
+  .bub .who { display: block; font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+  .bub .when { display: block; font-size: 11px; color: #6b7280; text-align: end; margin-top: 3px; }
+  .bub.own { align-self: flex-end; background: #d7f7cd; }
+  .bub.own .who { color: #166534; }
+  .bub.other { align-self: flex-start; background: #fff; }
+  .bub.other .who { color: #0d9488; }
+  .bub .del {
+    position: absolute; top: 1px; inset-inline-end: 3px; border: 0; background: none;
+    color: #b91c1c; font-size: 13px; cursor: pointer; padding: 3px 5px; line-height: 1;
+  }
+  #chatEmpty { text-align: center; color: #6b7280; font-size: 14px; padding: 26px 10px; line-height: 1.6; }
+  .chatfoot {
+    background: #fff; border-top: 1px solid #e5e7eb; display: flex; gap: 8px; align-items: flex-end;
+    padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 10px);
+  }
+  .chatfoot textarea {
+    flex: 1; font-size: 16px; padding: 11px 13px; border: 1.5px solid #d1d5db; border-radius: 18px;
+    resize: none; min-height: 46px; max-height: 130px; font-family: inherit; color: #111827;
+  }
+  #chatSend {
+    border: 0; background: #0d9488; color: #fff; width: 46px; height: 46px; border-radius: 50%;
+    font-size: 18px; cursor: pointer; flex: 0 0 auto;
+  }
+  #chatSend:disabled { opacity: .5; }
+  #chatLocked {
+    background: #fff; border-top: 1px solid #e5e7eb; text-align: center; font-size: 14px;
+    color: #4b5563; line-height: 1.6;
+    padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
   /* overlays */
   .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50;
@@ -239,6 +283,7 @@
 
 <header>
   <h1 id="pageTitle">Carb Tracker</h1>
+  <button type="button" class="hbtn" id="notesBtn" aria-label="notes">💬</button>
   <button type="button" class="hbtn" id="langBtn">عربي</button>
   <button type="button" class="hbtn" id="lockBtn">🔓</button>
 </header>
@@ -367,6 +412,24 @@
   </div>
 </div>
 
+<div class="overlay" id="chatSheet">
+  <div class="sheet">
+    <div class="sheethead">
+      <h3 id="chat_title">Comments</h3>
+      <button type="button" class="hbtn" id="chatCloseBtn" aria-label="close">✕</button>
+    </div>
+    <div class="chatbody" id="chatBody"></div>
+    <div class="chatfoot" id="chatFoot">
+      <textarea id="chatInput" rows="1"></textarea>
+      <button type="button" id="chatSend" aria-label="send">➤</button>
+    </div>
+    <div id="chatLocked">
+      <span id="chatLockedText"></span><br>
+      <button type="button" class="minibtn" id="doctorBtn" style="margin-top:8px"></button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="foodSheet">
   <div class="sheet">
     <div class="sheethead">
@@ -480,6 +543,21 @@
       , fcNone: 'Add a few meals with the before reading, the after reading and the carbs, and a suggested factor will appear here.'
       , fcEdit: 'Change'
       , fcAskStep: 'One unit of insulin brings the sugar down by how much?'
+      , comments: 'Comments'
+      , commentsOnMeal: 'Comments on this meal'
+      , generalNotes: 'Notes with the doctor'
+      , writeHere: 'Write here…'
+      , doctorName: 'Doctor'
+      , patientName: 'Amani'
+      , iAmDoctor: 'I am the doctor'
+      , doctorCodePrompt: 'Enter the doctor code to write a comment:'
+      , wrongCode: 'Wrong code.'
+      , codeTooShort: 'The code must be at least 8 characters.'
+      , doctorReady: 'You can write comments now.'
+      , noComments: 'No comments yet. The doctor writes here, and Amani replies.'
+      , chatLockedHint: 'Only Amani and the doctor can write here.'
+      , doctorNotSet: 'The doctor code has not been set up on this website yet.'
+      , deleteCommentAsk: 'Delete this comment?'
     }
     , ar: {
       title: 'سجل الكارب'
@@ -551,6 +629,21 @@
       , fcNone: 'أدخلي بضع وجبات مع قراءة السكر قبل الأكل وبعده والكربوهيدرات ليظهر هنا المعامل المقترح.'
       , fcEdit: 'تغيير'
       , fcAskStep: 'كم تخفض وحدة الإنسولين الواحدة من السكر؟'
+      , comments: 'التعليقات'
+      , commentsOnMeal: 'تعليقات على هذه الوجبة'
+      , generalNotes: 'ملاحظات مع الطبيب'
+      , writeHere: 'اكتبي هنا…'
+      , doctorName: 'الطبيب'
+      , patientName: 'أماني'
+      , iAmDoctor: 'أنا الطبيب'
+      , doctorCodePrompt: 'أدخل رمز الطبيب لكتابة تعليق:'
+      , wrongCode: 'الرمز غير صحيح.'
+      , codeTooShort: 'الرمز يجب أن يكون ٨ أحرف على الأقل.'
+      , doctorReady: 'يمكنك كتابة التعليقات الآن.'
+      , noComments: 'لا توجد تعليقات بعد. الطبيب يكتب هنا، وأماني ترد.'
+      , chatLockedHint: 'الكتابة هنا لأماني والطبيب فقط.'
+      , doctorNotSet: 'رمز الطبيب غير مفعّل في هذا الموقع بعد.'
+      , deleteCommentAsk: 'حذف هذا التعليق؟'
     }
   };
 
@@ -573,6 +666,11 @@
     , authenticated: false
     , editingId: null
     , editingDoc: null
+    , comments: []
+    , chatMeal: null
+    , doctorHash: null
+    , isDoctor: false
+    , doctorEnabled: false
     , photos: { kept: [], added: [] }   // ids already on the server, and new photos waiting to upload
     , busy: false
   };
@@ -674,6 +772,7 @@
         var settings = s && s.settings || {};
         if (settings.units) { state.units = settings.units; }
         state.careportalEnabled = s.careportalEnabled !== false;
+        state.doctorEnabled = !!s.doctorCommentsEnabled;
         state.apiEnabled = s.apiEnabled !== false;
         var th = settings.thresholds;
         if (th && th.bgTargetTop) {
@@ -1080,6 +1179,128 @@
     return localizedItems(doc).map(function (i) { return i.name + ' ×' + i.qty; }).join(' · ');
   }
 
+  /* ---------------- comments with the doctor ---------------- */
+  function commentsFor (mealId) {
+    return state.comments.filter(function (c) { return String(c.meal) === String(mealId); });
+  }
+
+  function myRole () {
+    if (state.authenticated) { return 'patient'; }
+    if (state.isDoctor) { return 'doctor'; }
+    return null;
+  }
+
+  function authorName (author) {
+    return author === 'doctor' ? t('doctorName') : t('patientName');
+  }
+
+  function loadComments () {
+    return fetch('/api/v1/mealcomments?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (list) {
+        state.comments = Array.isArray(list) ? list : [];
+        render();
+      })
+      .catch(function () { /* keep whatever we already have */ });
+  }
+
+  function renderChat () {
+    var list = commentsFor(state.chatMeal);
+    var role = myRole();
+    var body = $('chatBody');
+
+    body.innerHTML = list.length ? list.map(function (c) {
+      var own = role && c.author === role;
+      var when = fmtDate(c.created_at);
+      return '<div class="bub ' + (own ? 'own' : 'other') + '">'
+        + (state.authenticated ? '<button type="button" class="del" data-cdel="' + esc(c._id) + '" aria-label="delete">✕</button>' : '')
+        + '<span class="who">' + esc(authorName(c.author)) + '</span>'
+        + esc(c.text).replace(/\n/g, '<br>')
+        + '<span class="when">' + esc(when.t) + ' · ' + esc(when.d) + '</span>'
+        + '</div>';
+    }).join('') : '<p id="chatEmpty">' + esc(t('noComments')) + '</p>';
+    body.scrollTop = body.scrollHeight;
+
+    var canWrite = !!role;
+    $('chatFoot').style.display = canWrite ? 'flex' : 'none';
+    $('chatLocked').style.display = canWrite ? 'none' : 'block';
+    $('chatInput').placeholder = t('writeHere') + (role ? ' (' + authorName(role) + ')' : '');
+    $('chatLockedText').textContent = state.doctorEnabled ? t('chatLockedHint') : t('doctorNotSet');
+    $('doctorBtn').textContent = t('iAmDoctor');
+    $('doctorBtn').style.display = state.doctorEnabled ? 'inline-block' : 'none';
+  }
+
+  function openChat (mealId, title) {
+    state.chatMeal = mealId;
+    $('chat_title').textContent = title;
+    renderChat();
+    $('chatSheet').classList.add('open');
+    loadComments().then(renderChat);
+  }
+
+  function sendComment () {
+    var text = $('chatInput').value.trim();
+    var role = myRole();
+    if (!text || !role) { return; }
+    var headers = { 'Content-Type': 'application/json' };
+    if (role === 'patient') { headers['api-secret'] = state.authHash; }
+    else { headers['doctor-code'] = state.doctorHash; }
+    $('chatSend').disabled = true;
+    fetch('/api/v1/mealcomments', {
+      method: 'POST'
+      , headers: headers
+      , body: JSON.stringify({ meal: state.chatMeal, text: text })
+    }).then(function (r) {
+      if (!r.ok) { throw new Error('post failed ' + r.status); }
+      $('chatInput').value = '';
+      return loadComments().then(renderChat);
+    }).catch(function () {
+      toast(t('saveError'), 4000);
+    }).then(function () {
+      $('chatSend').disabled = false;
+    });
+  }
+
+  function deleteComment (id) {
+    if (!window.confirm(t('deleteCommentAsk'))) { return; }
+    fetch('/api/v1/mealcomments/' + encodeURIComponent(id), { method: 'DELETE', headers: authHeaders() })
+      .then(function (r) {
+        if (!r.ok) { throw new Error('delete failed'); }
+        return loadComments().then(renderChat);
+      })
+      .catch(function () { toast(t('saveError'), 4000); });
+  }
+
+  function useDoctorCode (hash) {
+    return fetch('/api/v1/verifydoctor?t=' + Date.now(), {
+      headers: { 'doctor-code': hash }, cache: 'no-store'
+    }).then(function (r) { return r.json(); })
+      .then(function (j) { return !!(j && j.message === 'OK'); })
+      .catch(function () { return false; });
+  }
+
+  function askDoctorCode () {
+    var code = window.prompt(t('doctorCodePrompt'));
+    if (code === null) { return; }
+    if (code.length < 8) {
+      window.alert(t('codeTooShort'));
+      return;
+    }
+    sha1hex(code).then(function (hash) {
+      return useDoctorCode(hash).then(function (ok) {
+        if (!ok) {
+          window.alert(t('wrongCode'));
+          return;
+        }
+        state.doctorHash = hash;
+        state.isDoctor = true;
+        try { localStorage.setItem('ct-doctorcode', hash); } catch (e) { /* private mode */ }
+        renderChat();
+        toast(t('doctorReady'));
+      });
+    });
+  }
+
   /* ---------------- suggested carb factor ---------------- */
   // How far one unit of insulin moves the sugar. The doctor's rule is one unit
   // per 40 mg/dL; it can be changed if the doctor gives a different number.
@@ -1241,6 +1462,7 @@
     $('foodUseBtn').textContent = t('use');
     renderPicked();
     renderFoodList();
+    if (state.chatMeal !== null) { renderChat(); }
     renderChips();
     render();
   }
@@ -1311,6 +1533,8 @@
   }
 
   function render () {
+    var generalCount = commentsFor('general').length;
+    $('notesBtn').textContent = generalCount ? '💬 ' + generalCount : '💬';
     renderGaps();
     renderFactorCard();
     renderStats();
@@ -1333,10 +1557,13 @@
           return '<img class="thumb" loading="lazy" alt="" data-act="photo" data-src="' + esc(photoUrl(id)) + '" src="' + esc(photoUrl(id)) + '">';
         }).join('') + '</span>'
         : '';
-      var actions = state.authenticated
-        ? '<button type="button" class="rowbtn" data-act="edit" data-id="' + esc(e._id) + '" aria-label="edit">✎</button>'
-          + ' <button type="button" class="rowbtn del" data-act="del" data-id="' + esc(e._id) + '" aria-label="delete">🗑</button>'
-        : '';
+      var chatCount = commentsFor(e._id).length;
+      var actions = '<button type="button" class="chatbtn' + (chatCount ? ' has' : '') + '" data-act="chat" data-id="' + esc(e._id) + '">💬'
+          + (chatCount ? ' ' + chatCount : '') + '</button>'
+        + (state.authenticated
+          ? ' <button type="button" class="rowbtn" data-act="edit" data-id="' + esc(e._id) + '" aria-label="edit">✎</button>'
+            + ' <button type="button" class="rowbtn del" data-act="del" data-id="' + esc(e._id) + '" aria-label="delete">🗑</button>'
+          : '');
 
       tr.innerHTML =
         '<td data-label="' + esc(t('hTime')) + '"><span class="tstamp">' + esc(when.t) + '<small>' + esc(when.d) + '</small></span></td>'
@@ -1528,6 +1755,10 @@
     }).then(function (r) {
       if (!r.ok) { throw new Error('delete failed'); }
       docImageIds(entry).forEach(deletePhoto);
+      commentsFor(id).forEach(function (c) {
+        fetch('/api/v1/mealcomments/' + encodeURIComponent(c._id), { method: 'DELETE', headers: authHeaders() })
+          .catch(function () { /* best effort */ });
+      });
       toast(t('deleted'));
       loadEntries();
     }).catch(function () {
@@ -1686,6 +1917,10 @@
     var id = el.getAttribute('data-id');
     var entry = null;
     state.entries.forEach(function (e) { if (String(e._id) === String(id)) { entry = e; } });
+    if (act === 'chat' && entry) {
+      var when = fmtDate(entry.created_at);
+      openChat(entry._id, t('commentsOnMeal') + ' · ' + when.t + ' ' + when.d);
+    }
     if (act === 'edit' && entry) { openForm(entry); }
     if (act === 'after' && entry) { openForm(entry, true); }
     if (act === 'del') { deleteMeal(id); }
@@ -1716,6 +1951,21 @@
   $('nfSave').onclick = saveNewFood;
   $('nfCancel').onclick = function () { $('newFoodCard').style.display = 'none'; };
 
+  $('notesBtn').onclick = function () { openChat('general', t('generalNotes')); };
+  $('chatCloseBtn').onclick = function () { $('chatSheet').classList.remove('open'); };
+  $('chatSend').onclick = sendComment;
+  $('doctorBtn').onclick = askDoctorCode;
+  $('chatInput').addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter' && !ev.shiftKey) {
+      ev.preventDefault();
+      sendComment();
+    }
+  });
+  $('chatBody').addEventListener('click', function (ev) {
+    var el = ev.target.closest('[data-cdel]');
+    if (el) { deleteComment(el.getAttribute('data-cdel')); }
+  });
+
   $('lightbox').onclick = function () { $('lightbox').classList.remove('open'); };
   $('csvBtn').onclick = exportCsv;
 
@@ -1736,6 +1986,17 @@
       setAuthenticated(false);
     }
     loadEntries();
+    loadComments();
+
+    var storedCode = null;
+    try { storedCode = localStorage.getItem('ct-doctorcode'); } catch (e) { /* ignore */ }
+    if (storedCode && /^[0-9a-f]{40}$/.test(storedCode)) {
+      useDoctorCode(storedCode).then(function (ok) {
+        state.isDoctor = ok;
+        if (ok) { state.doctorHash = storedCode; }
+        if (state.chatMeal !== null) { renderChat(); }
+      });
+    }
   });
 
 })();

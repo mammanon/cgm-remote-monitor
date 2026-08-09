@@ -129,6 +129,26 @@ Meal photos are stored in the database in their own collection
 Photos are automatically resized on the phone before upload so they stay
 small (~100–300 KB each).
 
+## Comments with the doctor
+
+Every meal has a conversation on it, and there is a general thread behind
+the 💬 button at the top. Messages look like a chat: the doctor's on one
+side, the patient's on the other.
+
+The doctor does **not** get the API secret. Instead set `DOCTOR_CODE` (8+
+characters) and give the doctor that. With it they can **only add
+comments** — they cannot add, change or delete a meal, and they cannot
+delete comments. The patient, who has the API secret, can do all of it.
+
+On the doctor's phone: open the link, tap 💬 on a meal, tap **"I am the
+doctor"**, enter the code once — the phone remembers it.
+
+Leave `DOCTOR_CODE` empty and the writing box simply never appears for
+anyone but the patient.
+
+The patient's name shown on the messages is set in the page's translation
+table (`patientName`), currently **Amani / أماني**.
+
 ## Automatic daily backup
 
 The server writes **one backup a day** by itself, into a Docker volume that
