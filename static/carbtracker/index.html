@@ -2066,6 +2066,16 @@
     loadEntries();
     loadComments();
 
+    // New comments appear on their own: once a minute while the page is
+    // open, and immediately when she comes back to the app.
+    setInterval(function pollComments ( ) {
+      if (!document.hidden) { loadComments(); }
+    }, 60000);
+    window.addEventListener('focus', function ( ) { loadComments(); });
+    document.addEventListener('visibilitychange', function ( ) {
+      if (!document.hidden) { loadComments(); }
+    });
+
     var storedCode = null;
     try { storedCode = localStorage.getItem('ct-doctorcode'); } catch (e) { /* ignore */ }
     if (storedCode && /^[0-9a-f]{40}$/.test(storedCode)) {
