@@ -224,6 +224,7 @@
     border-top: 1px dotted #e5e7eb; padding-top: 2px;
   }
   .carbdetail .cline .cg { color: #0f5f57; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .carbdetail .cline .cunit { color: #6b7280; font-weight: 400; }
   /* comments between the patient and the doctor */
   .chatbtn {
     border: 0; background: #e0f2f1; color: #0f5f57; border-radius: 8px;
@@ -1251,7 +1252,11 @@
     if (!items.length) { return ''; }
     return '<span class="carbdetail">' + items.map(function (i) {
       var grams = i.g === null || i.g === undefined ? null : round1(i.g * i.qty);
-      return '<span class="cline"><span>' + esc(i.name) + ' × ' + esc(i.qty) + '</span>'
+      // the portion unit makes the count readable: "rice × 15" alone
+      // does not say 15 of what (spoons? cups?)
+      return '<span class="cline"><span>' + esc(i.name)
+        + (i.unit ? '<span class="cunit"> · ' + esc(i.unit) + '</span>' : '')
+        + ' × ' + esc(i.qty) + '</span>'
         + '<span class="cg">' + (grams === null ? '' : esc(grams) + ' ' + esc(t('gram'))) + '</span></span>';
     }).join('') + '</span>';
   }
