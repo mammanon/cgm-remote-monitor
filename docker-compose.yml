@@ -29,6 +29,11 @@ services:
       ENABLE: careportal
       TREATMENTS_AUTH: "true"
       DISPLAY_UNITS: ${DISPLAY_UNITS:-mg/dl}
+      # sugar bands used for the colours and as the default dosing target
+      BG_TARGET_TOP: ${BG_TARGET_TOP:-180}
+      BG_TARGET_BOTTOM: ${BG_TARGET_BOTTOM:-80}
+      BG_HIGH: ${BG_HIGH:-260}
+      BG_LOW: ${BG_LOW:-55}
       # short code the doctor uses to write comments (optional)
       DOCTOR_CODE: ${DOCTOR_CODE:-}
       # one backup a day, kept in a volume so updates never touch it

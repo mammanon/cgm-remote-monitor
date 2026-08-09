@@ -564,7 +564,10 @@
       , fcMethod: 'Method: after-meal target {target} {units}, and 1 unit of insulin for every {step} {units} above it.'
       , fcNote: 'This is only a suggestion calculated from her own readings. Ask the doctor before changing the factor.'
       , fcNone: 'Add a few meals with the before reading, the after reading and the carbs, and a suggested factor will appear here.'
-      , fcEdit: 'Change'
+      , mealChatLabel: 'Doctor notes'
+      , fcEditTarget: 'Target'
+      , fcEditStep: 'Correction'
+      , fcAskTarget: 'The goal for the sugar after the meal?'
       , fcAskStep: 'One unit of insulin brings the sugar down by how much?'
       , comments: 'Comments'
       , commentsOnMeal: 'Comments on this meal'
@@ -652,7 +655,10 @@
       , fcMethod: 'الطريقة: الهدف بعد الوجبة {target} {units}، ووحدة إنسولين واحدة لكل {step} {units} فوق الهدف.'
       , fcNote: 'هذا اقتراح محسوب من قراءاتها فقط. راجعي الطبيب قبل تغيير المعامل.'
       , fcNone: 'أدخلي بضع وجبات مع قراءة السكر قبل الأكل وبعده والكربوهيدرات ليظهر هنا المعامل المقترح.'
-      , fcEdit: 'تغيير'
+      , mealChatLabel: 'ملاحظات الطبيب'
+      , fcEditTarget: 'الهدف'
+      , fcEditStep: 'التصحيح'
+      , fcAskTarget: 'كم الهدف للسكر بعد الوجبة؟'
       , fcAskStep: 'كم تخفض وحدة الإنسولين الواحدة من السكر؟'
       , comments: 'التعليقات'
       , commentsOnMeal: 'تعليقات على هذه الوجبة'
@@ -1385,6 +1391,23 @@
     return isMmol() ? round1(mgdl / 18.018) : mgdl;
   }
 
+  // The doctor's after-meal goal. Defaults to the site's target band, and can
+  // be set on the device with the pencil, kept in mg/dL like the step.
+  function targetAfterMeal () {
+    var saved = Number(readJson('ct-target-mgdl', 0));
+    if (saved > 0) { return isMmol() ? round1(saved / 18.018) : saved; }
+    return state.thresholds.bgTargetTop;
+  }
+
+  function askTargetAfterMeal () {
+    var answer = window.prompt(t('fcAskTarget') + ' (' + unitsLabel() + ')', String(targetAfterMeal()));
+    if (answer === null) { return; }
+    var value = Number(String(answer).replace(',', '.'));
+    if (isNaN(value) || value <= 0) { return; }
+    writeJson('ct-target-mgdl', isMmol() ? value * 18.018 : value);
+    render();
+  }
+
   function askCorrectionStep () {
     var answer = window.prompt(t('fcAskStep') + ' (' + unitsLabel() + ')', String(correctionStep()));
     if (answer === null) { return; }
@@ -1399,7 +1422,7 @@
   // left above target is insulin that was missing, so the factor that would
   // have worked is carbs / (insulin given + insulin missing).
   function factorAdvice () {
-    var target = state.thresholds.bgTargetTop;
+    var target = targetAfterMeal();
     var step = correctionStep();
     var since = Date.now() - 4 * 86400000;
     var factors = [];
@@ -1444,8 +1467,10 @@
       .replace('{target}', advice.target)
       .replace('{step}', advice.step)
       .replace(/\{units\}/g, unitsLabel()))
-      + ' <button type="button" id="fc_edit">✎ ' + esc(t('fcEdit')) + '</button>';
-    $('fc_edit').onclick = askCorrectionStep;
+      + ' <button type="button" id="fc_edit_target">✎ ' + esc(t('fcEditTarget')) + '</button>'
+      + ' <button type="button" id="fc_edit_step">✎ ' + esc(t('fcEditStep')) + '</button>';
+    $('fc_edit_target').onclick = askTargetAfterMeal;
+    $('fc_edit_step').onclick = askCorrectionStep;
 
     if (!advice.count) {
       $('fc_value').textContent = '—';
@@ -1636,8 +1661,8 @@
         : '';
       var chatCount = commentsFor(e._id).length;
       var chatNew = unreadFor(e._id);
-      var actions = '<button type="button" class="chatbtn' + (chatNew ? ' unread' : (chatCount ? ' has' : '')) + '" data-act="chat" data-id="' + esc(e._id) + '">💬'
-          + (chatCount ? ' ' + chatCount : '') + '</button>'
+      var actions = '<button type="button" class="chatbtn' + (chatNew ? ' unread' : (chatCount ? ' has' : '')) + '" data-act="chat" data-id="' + esc(e._id) + '">💬 ' + esc(t('mealChatLabel'))
+          + (chatCount ? ' · ' + chatCount : '') + '</button>'
         + (state.authenticated
           ? ' <button type="button" class="rowbtn" data-act="edit" data-id="' + esc(e._id) + '" aria-label="edit">✎</button>'
             + ' <button type="button" class="rowbtn del" data-act="del" data-id="' + esc(e._id) + '" aria-label="delete">🗑</button>'
