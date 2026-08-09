@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Carb Tracker">
@@ -12,7 +12,9 @@
 <link rel="icon" href="/images/android-chrome-192x192.png">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { -webkit-text-size-adjust: 100%; }
+  /* a double tap must press the button again, never zoom the page */
+  html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
+  button, input, textarea, select, label, a { touch-action: manipulation; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background: #f1f5f4;
@@ -214,7 +216,14 @@
     width: 100%; font-size: 16px; padding: 10px 11px; border: 1.5px solid #d1d5db;
     border-radius: 10px; margin-bottom: 8px; min-height: 44px; appearance: none; -webkit-appearance: none;
   }
-  .carbdetail { display: block; color: #6b7280; font-size: 12px; line-height: 1.4; margin-top: 2px; }
+  .carbtotal { font-weight: 700; }
+  .carbdetail { display: block; margin-top: 6px; }
+  .carbdetail .cline {
+    display: flex; justify-content: space-between; gap: 10px;
+    color: #4b5563; font-size: 13px; line-height: 1.7;
+    border-top: 1px dotted #e5e7eb; padding-top: 2px;
+  }
+  .carbdetail .cline .cg { color: #0f5f57; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
   /* comments between the patient and the doctor */
   .chatbtn {
     border: 0; background: #e0f2f1; color: #0f5f57; border-radius: 8px;
@@ -1087,7 +1096,7 @@
     });
     // whatever she used before comes first; sort is stable, so everything else
     // keeps the order of the doctor's list
-    var used = foodUsage();
+    var used = picker.usedSnapshot || foodUsage();
     foods.sort(function (a, b) { return (used[b.id] || 0) - (used[a.id] || 0); });
     $('foodList').innerHTML = foods.length ? foods.map(function (f) {
       var chosen = findPicked(f.id);
@@ -1124,6 +1133,7 @@
         picker.items = picker.items.filter(function (i) { return i.id !== id; });
       }
     }
+    if (delta > 0) { markFoodsUsed([{ id: id }]); }
     renderFoodList();
   }
 
@@ -1178,6 +1188,7 @@
   }
 
   function openFoodSheet () {
+    picker.usedSnapshot = foodUsage();
     picker.q = '';
     $('foodSearch').value = '';
     $('newFoodCard').style.display = 'none';
@@ -1230,12 +1241,19 @@
         name: known ? known.name : (i.n || '')
         , unit: known ? known.unit : (i.u || '')
         , qty: Number(i.q) || 1
+        , g: (i.g === null || i.g === undefined || isNaN(Number(i.g))) ? null : Number(i.g)
       };
     });
   }
 
   function itemsSummary (doc) {
-    return localizedItems(doc).map(function (i) { return i.name + ' ×' + i.qty; }).join(' · ');
+    var items = localizedItems(doc);
+    if (!items.length) { return ''; }
+    return '<span class="carbdetail">' + items.map(function (i) {
+      var grams = i.g === null || i.g === undefined ? null : round1(i.g * i.qty);
+      return '<span class="cline"><span>' + esc(i.name) + ' × ' + esc(i.qty) + '</span>'
+        + '<span class="cg">' + (grams === null ? '' : esc(grams) + ' ' + esc(t('gram'))) + '</span></span>';
+    }).join('') + '</span>';
   }
 
   /* ---------------- comments with the doctor ---------------- */
@@ -1750,9 +1768,9 @@
         '<td data-label="' + esc(t('hTime')) + '"><span class="tstamp">' + esc(when.t) + '<small>' + esc(when.d) + '</small></span></td>'
         + '<td data-label="' + esc(t('hBefore')) + '">' + bgCell(e.glucose) + '</td>'
         + '<td data-label="' + esc(t('hAfter')) + '">' + afterHtml + '</td>'
-        + '<td data-label="' + esc(t('hCarbs')) + '"><span>' + (num(e.carbs) !== null ? esc(num(e.carbs)) + ' ' + esc(t('gram'))
-          : (itemsSummary(e) ? '0 ' + esc(t('gram')) : '<span class="bg miss">—</span>'))
-          + (itemsSummary(e) ? '<small class="carbdetail">' + esc(itemsSummary(e)) + '</small>' : '') + '</span></td>'
+        + '<td data-label="' + esc(t('hCarbs')) + '"><span>' + (num(e.carbs) !== null ? '<span class="carbtotal">' + esc(num(e.carbs)) + ' ' + esc(t('gram')) + '</span>'
+          : (itemsSummary(e) ? '<span class="carbtotal">0 ' + esc(t('gram')) + '</span>' : '<span class="bg miss">—</span>'))
+          + itemsSummary(e) + '</span></td>'
         + '<td data-label="' + esc(t('hFactor')) + '"' + (num(e.carbFactor) === null ? ' class="hideempty"' : '') + '><b>' + (num(e.carbFactor) === null ? '—' : esc(num(e.carbFactor))) + '</b></td>'
         + '<td data-label="' + esc(t('hInsulin')) + '"' + (num(e.insulin) === null ? ' class="hideempty"' : '') + '>' + (num(e.insulin) === null ? '—' : esc(num(e.insulin)) + ' U') + '</td>'
         + '<td data-label="' + esc(t('hPhoto')) + '"' + (imageIds.length ? '' : ' class="hideempty"') + '>' + photoHtml + '</td>'
@@ -2056,6 +2074,16 @@
   $('addMealBtn').onclick = function () { openForm(null); };
   $('cancelBtn').onclick = closeForm;
   $('mealForm').addEventListener('submit', saveMeal);
+  // typing over an old number should replace it, not sit beside it —
+  // selecting on every tap, so a second tap re-selects too
+  function selectNumberInput (ev) {
+    var el = ev.target;
+    if (el && el.tagName === 'INPUT' && el.type === 'number' && el.value !== '') {
+      setTimeout(function () { try { el.select(); } catch (e) { /* ignore */ } }, 0);
+    }
+  }
+  $('mealForm').addEventListener('focusin', selectNumberInput);
+  $('mealForm').addEventListener('click', selectNumberInput);
   $('nowBtn').onclick = function () { $('mealTime').value = toInputValue(new Date()); };
 
   $('photoBtn').onclick = function () { $('photoInput').click(); };
