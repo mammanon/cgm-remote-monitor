@@ -85,6 +85,21 @@ docker compose --profile https up -d --build
 Then the site is at `https://your-domain/carbtracker/` with an automatic
 free certificate.
 
+### Updating to a newer version
+
+On the server:
+
+```bash
+cd cgm-remote-monitor
+./update.sh
+```
+
+> ⚠️ **Restarting is not updating.** `docker compose restart`, or rebooting
+> the server, starts the *same* code again — nothing new appears. Only
+> `./update.sh` (which does `git pull` and rebuilds) brings in changes.
+> Meals, photos and backups live in their own volumes and are never touched
+> by an update.
+
 > ⚠️ **Database version matters:** this Nightscout version is from 2015 and
 > can only talk to **MongoDB 4.0 or older**. The `docker-compose.yml` uses
 > MongoDB 4.0 on purpose. It can NOT use MongoDB Atlas or MongoDB 6+.
