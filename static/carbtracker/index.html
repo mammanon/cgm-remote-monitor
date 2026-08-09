@@ -186,6 +186,13 @@
     padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 12px;
   }
   .sheethead h3 { flex: 1; font-size: 17px; font-weight: 700; }
+  .headtotal {
+    background: rgba(255,255,255,.16); border: 1.5px solid rgba(255,255,255,.5); color: #fff;
+    border-radius: 999px; padding: 5px 11px; font-size: 14px; font-weight: 700;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .headtotal.pop { animation: totpop .25s ease; }
+  @keyframes totpop { 50% { transform: scale(1.18); } }
   .sheetsearch { padding: 10px 12px 8px; background: #fff; border-bottom: 1px solid #e5e7eb; }
   .sheetsearch input {
     width: 100%; font-size: 16px; padding: 10px 12px; border: 1.5px solid #d1d5db;
@@ -198,6 +205,7 @@
   .foodrow .fname { flex: 1; font-size: 15px; line-height: 1.35; }
   .foodrow .fname small { display: block; color: #6b7280; font-size: 13px; }
   .foodrow .fg { font-weight: 700; color: #0f5f57; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .foodrow .fg small { display: block; font-size: 11px; font-weight: 400; color: #6b7280; text-align: center; }
   .qty { display: flex; align-items: center; gap: 5px; }
   .qty button {
     width: 38px; height: 38px; border-radius: 10px; border: 1.5px solid #0d9488;
@@ -473,6 +481,7 @@
   <div class="sheet">
     <div class="sheethead">
       <h3 id="fs_title">Choose foods</h3>
+      <span class="headtotal" id="foodTotalTop" style="display:none"></span>
       <button type="button" class="hbtn" id="foodCloseBtn" aria-label="close">✕</button>
     </div>
     <div class="sheetsearch">
@@ -1106,14 +1115,33 @@
         + '<button type="button" class="fedit" data-fact="edit" data-id="' + esc(f.id) + '" aria-label="edit">✎</button>'
         + (f.custom ? '<button type="button" class="fedit del" data-fact="remove" data-id="' + esc(f.id) + '" aria-label="delete">🗑</button>' : '')
         + '<span class="fname">' + esc(f.name) + '<small>' + esc(f.unit) + '</small></span>'
-        + '<span class="fg">' + esc(f.g) + ' ' + esc(t('gram')) + '</span>'
+        // once portions are picked the row shows what THEY add up to,
+        // so every + tap gives feedback right under her finger
+        + '<span class="fg">' + (qty
+          ? esc(round1(f.g * qty)) + ' ' + esc(t('gram')) + '<small>' + esc(f.g) + ' × ' + esc(qty) + '</small>'
+          : esc(f.g) + ' ' + esc(t('gram'))) + '</span>'
         + '<span class="qty">'
           + '<button type="button" data-fact="minus" data-id="' + esc(f.id) + '" aria-label="less">−</button>'
           + '<b>' + esc(qty) + '</b>'
           + '<button type="button" data-fact="plus" data-id="' + esc(f.id) + '" aria-label="more">+</button>'
         + '</span></div>';
     }).join('') : '<p style="text-align:center;color:#6b7280;padding:20px;line-height:1.6">' + esc(t('noFoodFound')) + '</p>';
-    $('foodTotal').textContent = t('total') + ': ' + round1(pickedTotal()) + ' ' + t('gram');
+    setTotals();
+  }
+
+  function setTotals () {
+    var text = t('total') + ': ' + round1(pickedTotal()) + ' ' + t('gram');
+    $('foodTotal').textContent = text;
+    // the footer copy hides behind the phone keyboard while she searches,
+    // so the header carries the same total where it is always visible
+    var top = $('foodTotalTop');
+    top.style.display = picker.items.length ? '' : 'none';
+    if (top.textContent !== text) {
+      top.textContent = text;
+      top.classList.remove('pop');
+      void top.offsetWidth;
+      top.classList.add('pop');
+    }
   }
 
   function changeQty (id, delta) {
