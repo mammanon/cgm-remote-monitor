@@ -16,6 +16,18 @@ logging meals the way many doctors ask for:
 
 The page is in **English and Arabic** (button at the top switches the language).
 
+### Sugar checks (a reading without a meal)
+
+Sometimes the patient just measures the sugar — the morning (fasting) reading,
+before sport, before bed — with no meal around it. Tick **“Sugar check only
+(no meal)”** at the top of the add form: every meal field disappears and only
+the time and the reading stay. Such entries are shown with a small
+**🩸 Sugar check** tag, are never nagged for the missing after/carbs values,
+and stay out of the meal count and the averages. Editing a sugar check and
+un-ticking the switch turns it into a normal meal (useful when she measures
+first and then decides to eat). Old entries that have only a before-reading
+are treated as sugar checks automatically.
+
 ## Where is it?
 
 Open your Nightscout website and go to:

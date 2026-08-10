@@ -83,6 +83,20 @@
   }
   .thumbs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .formbtns { display: flex; gap: 10px; margin-top: 16px; }
+  /* "sugar check only" mode: everything but the reading disappears */
+  .checkrow {
+    display: flex; align-items: center; gap: 10px; background: #f0fbf9;
+    border: 1.5px solid #b9e5df; border-radius: 10px; padding: 11px 12px;
+    margin-bottom: 12px; font-size: 15px; font-weight: 600; color: #0f5f57; cursor: pointer;
+  }
+  .checkrow input { width: 22px; height: 22px; accent-color: #0d9488; flex: 0 0 auto; }
+  form.checkmode #afterField, form.checkmode #carbsRow, form.checkmode #foodField,
+  form.checkmode #insulinField, form.checkmode #notesField, form.checkmode #photoField { display: none; }
+  form.checkmode .row2 { grid-template-columns: 1fr; }
+  .cktag {
+    display: inline-block; background: #e0f2f1; color: #0f5f57; border-radius: 6px;
+    font-size: 11px; font-weight: 600; padding: 2px 6px; margin-top: 3px;
+  }
   .savebtn {
     flex: 1; border: 0; background: #0d9488; color: #fff; font-size: 17px; font-weight: 700;
     border-radius: 12px; padding: 13px; cursor: pointer; min-height: 48px;
@@ -353,6 +367,11 @@
     <form id="mealForm" autocomplete="off">
       <h2 id="formTitle">Add meal</h2>
 
+      <label class="checkrow" id="checkRow">
+        <input type="checkbox" id="bgCheckToggle">
+        <span id="l_checkonly">Sugar check only (no meal)</span>
+      </label>
+
       <div class="field">
         <label for="mealTime" id="l_time">Meal time</label>
         <div class="timewrap">
@@ -366,13 +385,13 @@
           <label for="bgBefore"><span id="l_before">Sugar before meal</span> <span class="unit" id="unitLabel1"></span></label>
           <input type="number" id="bgBefore" inputmode="decimal" step="any" min="0">
         </div>
-        <div class="field">
+        <div class="field" id="afterField">
           <label for="bgAfter"><span id="l_after">Sugar after meal</span> <span class="unit" id="unitLabel2"></span></label>
           <input type="number" id="bgAfter" inputmode="decimal" step="any" min="0">
         </div>
       </div>
 
-      <div class="row2">
+      <div class="row2" id="carbsRow">
         <div class="field">
           <label for="carbs" id="l_carbs">Carbs (grams)</label>
           <input type="number" id="carbs" inputmode="decimal" step="any" min="0">
@@ -383,22 +402,22 @@
         </div>
       </div>
 
-      <div class="field">
+      <div class="field" id="foodField">
         <button type="button" class="minibtn" id="foodBtn">🍽️ <span id="foodBtnText">Calculate carbs from foods</span></button>
         <div id="pickedWrap"></div>
       </div>
 
-      <div class="field">
+      <div class="field" id="insulinField">
         <label for="insulin"><span id="l_insulin">Insulin dose (units)</span> <span class="unit" id="l_optional1"></span></label>
         <input type="number" id="insulin" inputmode="decimal" step="any" min="0">
       </div>
 
-      <div class="field">
+      <div class="field" id="notesField">
         <label for="notes"><span id="l_notes">Notes</span> <span class="unit" id="l_optional2"></span></label>
         <textarea id="notes" rows="2" style="resize:vertical"></textarea>
       </div>
 
-      <div class="field">
+      <div class="field" id="photoField">
         <label id="l_photo">Meal photo</label>
         <div class="photo-row">
           <button type="button" class="minibtn" id="photoBtn">📷 <span id="photoBtnText">Add photo</span></button>
@@ -567,6 +586,10 @@
       , searchFood: 'Search for a food…'
       , foodsNote: 'Portions are from the doctor’s list. Tap ✎ on any food to change its number.'
       , gram: 'g'
+      , checkOnly: 'Sugar check only (no meal)'
+      , currentSugar: 'Current sugar'
+      , sugarCheck: 'Sugar check'
+      , needReading: 'Please enter the sugar reading.'
       , total: 'Total'
       , use: 'Use'
       , addFood: 'Add a food'
@@ -662,6 +685,10 @@
       , searchFood: 'ابحثي عن صنف…'
       , foodsNote: 'المقادير مأخوذة من قائمة الطبيب. اضغطي ✎ على أي صنف لتغيير رقمه.'
       , gram: 'جم'
+      , checkOnly: 'قياس سكر فقط (بدون وجبة)'
+      , currentSugar: 'السكر الحالي'
+      , sugarCheck: 'قياس سكر'
+      , needReading: 'أدخلي قراءة السكر.'
       , total: 'المجموع'
       , use: 'استخدام'
       , addFood: 'إضافة صنف'
@@ -1614,9 +1641,21 @@
     $('fc_note').style.display = 'block';
   }
 
+  // A reading of the sugar with no meal around it. Either saved with the
+  // "sugar check only" switch, or an old entry that has just the before
+  // number - that was never a meal, so it must not be nagged for carbs.
+  function isReading (e) {
+    if (!e) { return false; }
+    if (e.bgCheck) { return true; }
+    return num(e.glucose) !== null && num(e.bgAfter) === null
+      && num(e.carbs) === null && !(Array.isArray(e.carbItems) && e.carbItems.length)
+      && num(e.carbFactor) === null && num(e.insulin) === null && !docImageIds(e).length;
+  }
+
   function renderGaps () {
     var missBefore = 0, missAfter = 0, missCarbs = 0;
     state.entries.forEach(function (e) {
+      if (isReading(e)) { return; }
       if (num(e.glucose) === null) { missBefore++; }
       if (num(e.bgAfter) === null) { missAfter++; }
       if (num(e.carbs) === null && !(Array.isArray(e.carbItems) && e.carbItems.length)) { missCarbs++; }
@@ -1655,6 +1694,8 @@
     $('l_optional2').textContent = t('optional');
     $('l_notes').textContent = t('notes');
     $('l_photo').textContent = t('photo');
+    $('l_checkonly').textContent = '🩸 ' + t('checkOnly');
+    updateCheckMode();
     $('photoBtnText').textContent = (state.photos.kept.length + state.photos.added.length) ? t('morePhotos') : t('addPhoto');
     renderPhotoStrip();
     $('saveBtn').textContent = t('save');
@@ -1743,7 +1784,8 @@
 
   function renderStats () {
     var wrap = $('stats');
-    var es = state.entries;
+    // sugar checks are not meals: they stay out of the count and the averages
+    var es = state.entries.filter(function (e) { return !isReading(e); });
     function stat (label, value) {
       return '<div class="stat"><b>' + (value === null ? '—' : esc(value)) + '</b><span>' + esc(label) + '</span></div>';
     }
@@ -1796,6 +1838,20 @@
           ? ' <button type="button" class="rowbtn" data-act="edit" data-id="' + esc(e._id) + '" aria-label="edit">✎</button>'
             + ' <button type="button" class="rowbtn del" data-act="del" data-id="' + esc(e._id) + '" aria-label="delete">🗑</button>'
           : '');
+
+      if (isReading(e)) {
+        // a sugar check: one reading, no red "missing" marks, no + after
+        tr.innerHTML =
+          '<td data-label="' + esc(t('hTime')) + '"><span class="tstamp">' + esc(when.t) + '<small>' + esc(when.d) + '</small>'
+            + '<small><span class="cktag">🩸 ' + esc(t('sugarCheck')) + '</span></small></span></td>'
+          + '<td data-label="' + esc(t('sugarCheck')) + '">' + bgCell(e.glucose) + '</td>'
+          + '<td class="hideempty"></td><td class="hideempty"></td><td class="hideempty"></td>'
+          + '<td class="hideempty"></td><td class="hideempty"></td>'
+          + '<td data-label="' + esc(t('hNotes')) + '" class="notecell' + (e.notes ? '' : ' hideempty') + '">' + esc(e.notes || '') + '</td>'
+          + '<td class="actioncell">' + actions + '</td>';
+        tbody.appendChild(tr);
+        return;
+      }
 
       tr.innerHTML =
         '<td data-label="' + esc(t('hTime')) + '"><span class="tstamp">' + esc(when.t) + '<small>' + esc(when.d) + '</small></span></td>'
@@ -1854,6 +1910,11 @@
     renderPhotoStrip();
 
     $('formTitle').textContent = doc ? t('editMeal') : t('addMeal');
+    var reading = doc ? isReading(doc) : false;
+    $('bgCheckToggle').checked = reading;
+    // a full meal cannot be flipped into a plain reading by mistake
+    $('checkRow').style.display = (!doc || reading) ? 'flex' : 'none';
+    updateCheckMode();
     $('formCard').style.display = 'block';
     $('addMealBtn').style.display = 'none';
     $('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1867,8 +1928,19 @@
     picker.items = [];
     renderPicked();
     $('mealForm').reset();
+    $('bgCheckToggle').checked = false;
+    updateCheckMode();
     $('formCard').style.display = 'none';
     if (state.authenticated) { $('addMealBtn').style.display = 'block'; }
+  }
+
+  function updateCheckMode () {
+    var on = $('bgCheckToggle').checked;
+    $('mealForm').classList.toggle('checkmode', on);
+    $('l_before').textContent = on ? t('currentSugar') : t('before');
+    $('l_time').textContent = on ? t('hTime') : t('mealTime');
+    $('formTitle').textContent = on ? t('sugarCheck')
+      : (state.editingId ? t('editMeal') : t('addMeal'));
   }
 
   function compressPhoto (file) {
@@ -1932,11 +2004,23 @@
     }
     delete doc.mealImageId;   // meals used to hold a single photo
     setOrDelete('mealImageIds', imageIds && imageIds.length ? imageIds : null);
+    if ($('bgCheckToggle').checked) {
+      // just a reading: whatever meal fields were hidden are dropped
+      doc.bgCheck = true;
+      delete doc.bgAfter; delete doc.carbs; delete doc.carbFactor;
+      delete doc.insulin; delete doc.carbItems;
+    } else {
+      delete doc.bgCheck;
+    }
     return doc;
   }
 
   function saveMeal (ev) {
     ev.preventDefault();
+    if ($('bgCheckToggle').checked && num($('bgBefore').value) === null) {
+      toast(t('needReading'), 3500);
+      return;
+    }
     if (state.busy) { return; }
     state.busy = true;
     $('saveBtn').disabled = true;
@@ -2015,7 +2099,7 @@
         , num(e.glucose) === null ? '' : num(e.glucose)
         , num(e.bgAfter) === null ? '' : num(e.bgAfter)
         , num(e.carbs) === null ? '' : num(e.carbs)
-        , localizedItems(e).map(function (i) {
+        , isReading(e) ? t('sugarCheck') : localizedItems(e).map(function (i) {
           return i.name + (i.unit ? ' (' + i.unit + ')' : '') + ' x' + i.qty;
         }).join(' + ')
         , num(e.carbFactor) === null ? '' : num(e.carbFactor)
@@ -2107,6 +2191,7 @@
   $('addMealBtn').onclick = function () { openForm(null); };
   $('cancelBtn').onclick = closeForm;
   $('mealForm').addEventListener('submit', saveMeal);
+  $('bgCheckToggle').addEventListener('change', updateCheckMode);
   // typing over an old number should replace it, not sit beside it —
   // selecting on every tap, so a second tap re-selects too
   function selectNumberInput (ev) {
