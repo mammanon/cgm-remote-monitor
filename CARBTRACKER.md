@@ -21,7 +21,8 @@ The page is in **English and Arabic** (button at the top switches the language).
 Sometimes the patient just measures the sugar — the morning (fasting) reading,
 before sport, before bed — with no meal around it. Tick **“Sugar check only
 (no meal)”** at the top of the add form: every meal field disappears and only
-the time and the reading stay. Such entries are shown with a small
+the time, the reading and an optional note (“fasting”, “before bed”…) stay.
+Such entries are shown with a small
 **🩸 Sugar check** tag, are never nagged for the missing after/carbs values,
 and stay out of the meal count and the averages. Editing a sugar check and
 un-ticking the switch turns it into a normal meal (useful when she measures
