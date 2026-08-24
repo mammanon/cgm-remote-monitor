@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FCU Time Schedules — Niagara</title>
+<link rel="stylesheet" href="fcu-schedules.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>FCU Time Schedules <span class="sub">Niagara Station</span></h1>
+  <div class="topbar-actions">
+    <button id="btn-add-schedule" class="btn primary">+ New Schedule</button>
+    <button id="btn-add-fcu" class="btn">+ Add FCU</button>
+    <button id="btn-export" class="btn ghost">Export JSON</button>
+    <label class="btn ghost file-btn">Import JSON<input type="file" id="file-import" accept=".json" hidden></label>
+  </div>
+</header>
+
+<main>
+  <section class="panel" id="unassigned-panel">
+    <h2>Unassigned Equipment</h2>
+    <p class="hint">Drag an FCU onto a schedule, or use the ▸ menu on each FCU card.</p>
+    <ul class="fcu-list" id="unassigned-list" data-schedule-id="__unassigned__"></ul>
+  </section>
+
+  <section id="schedules"></section>
+</main>
+
+<!-- Add / edit FCU dialog -->
+<dialog id="dlg-fcu">
+  <form method="dialog" id="form-fcu">
+    <h3 id="dlg-fcu-title">Add FCU</h3>
+    <label>Name <input name="name" required placeholder="e.g. FCU-L2-05"></label>
+    <label>Niagara ORD / path <input name="ord" placeholder="station:|slot:/Drivers/BacnetNetwork/FCU_L2_05"></label>
+    <label>Zone / location <input name="zone" placeholder="e.g. Level 2 — Office East"></label>
+    <menu>
+      <button value="cancel" class="btn ghost">Cancel</button>
+      <button value="ok" class="btn primary">Save</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- Add / rename schedule dialog -->
+<dialog id="dlg-schedule">
+  <form method="dialog" id="form-schedule">
+    <h3 id="dlg-schedule-title">New Schedule</h3>
+    <label>Schedule name <input name="name" required placeholder="e.g. Schedule 3 — Weekend"></label>
+    <menu>
+      <button value="cancel" class="btn ghost">Cancel</button>
+      <button value="ok" class="btn primary">Save</button>
+    </menu>
+  </form>
+</dialog>
+
+<template id="tpl-schedule">
+  <article class="panel schedule" draggable="false">
+    <header class="schedule-head">
+      <h2 class="schedule-name"></h2>
+      <div>
+        <button class="btn small act-rename">Rename</button>
+        <button class="btn small danger act-del-schedule">Delete</button>
+      </div>
+    </header>
+    <div class="times">
+      <h4>Weekly times</h4>
+      <table class="time-table">
+        <thead><tr><th>Day</th><th>Start</th><th>Stop</th><th>Enabled</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <h4 class="assigned-title">Assigned equipment (<span class="count">0</span>)</h4>
+    <ul class="fcu-list"></ul>
+  </article>
+</template>
+
+<script src="fcu-schedules.js"></script>
+</body>
+</html>

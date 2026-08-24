@@ -1,0 +1,137 @@
+:root {
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --ink: #1f2933;
+  --muted: #6b7683;
+  --line: #d9e0e6;
+  --accent: #0b6bcb;
+  --accent-ink: #ffffff;
+  --danger: #c0392b;
+  --chip: #eef4fb;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.topbar h1 { font-size: 1.15rem; margin: 0; }
+.topbar .sub { color: var(--muted); font-weight: 400; font-size: 0.85rem; margin-left: 8px; }
+.topbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+main {
+  padding: 20px;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 280px 1fr;
+  align-items: start;
+}
+#schedules {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+}
+@media (max-width: 800px) {
+  main { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.panel h2 { margin: 0 0 8px; font-size: 1rem; }
+.hint { color: var(--muted); font-size: 0.78rem; margin: 0 0 10px; }
+
+.schedule-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.assigned-title { margin: 12px 0 6px; font-size: 0.85rem; color: var(--muted); }
+
+.fcu-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  min-height: 52px;
+  border: 2px dashed transparent;
+  border-radius: 8px;
+}
+.fcu-list.drag-over { border-color: var(--accent); background: var(--chip); }
+
+.fcu-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: var(--chip);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  cursor: grab;
+}
+.fcu-card:active { cursor: grabbing; }
+.fcu-card .meta { min-width: 0; }
+.fcu-card .name { font-weight: 600; font-size: 0.9rem; }
+.fcu-card .zone, .fcu-card .ord {
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fcu-card .card-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; }
+.btn.small { padding: 3px 8px; font-size: 0.75rem; }
+.btn.danger { color: var(--danger); border-color: var(--danger); }
+.file-btn { display: inline-flex; align-items: center; }
+
+.time-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.time-table th, .time-table td { padding: 3px 6px; text-align: left; border-bottom: 1px solid var(--line); }
+.time-table input[type="time"] { border: 1px solid var(--line); border-radius: 5px; padding: 2px 4px; }
+.times h4 { margin: 10px 0 6px; font-size: 0.85rem; color: var(--muted); }
+
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+  width: min(420px, 90vw);
+}
+dialog::backdrop { background: rgba(31, 41, 51, 0.45); }
+dialog h3 { margin: 0 0 14px; }
+dialog label { display: block; margin-bottom: 12px; font-size: 0.85rem; }
+dialog input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 0.9rem;
+}
+dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 0; padding: 0; }
